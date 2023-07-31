@@ -1,0 +1,37 @@
+# An opinionated subset of Markdown.
+import std.iter.Peekable
+
+class Location {
+  # The source line number.
+  let @line: Int
+
+  # The source byte offset, used to compute the column number when needed.
+  let @offset: Int
+}
+
+class enum TokenKind {
+  case Backtick
+  case Colon
+  case Hyphen
+  case LeadingSpaces(Int)
+  case Pipe
+  case Star
+  case Text(String)
+  case Underscore
+}
+
+class Token {
+  # What kind of token we're dealing with, including its value (if any).
+  let @kind: TokenKind
+
+  # The location of the token.
+  let @location: Location
+}
+
+class Lexer {
+  let @input: Peekable[Int]
+}
+
+class pub Parser {
+
+}
