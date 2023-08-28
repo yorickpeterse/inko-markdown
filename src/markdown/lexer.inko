@@ -1,0 +1,551 @@
+# Lexical analysis of Markdown documents.
+import std.cmp.Equal
+import std.fmt.(Format, Formatter)
+import std.iter.Iter
+import std.string.Bytes
+
+let TAB = 9
+let LF = 10
+let CR = 13
+let SPACE = 32
+let EXCL = 33
+let HASH = 35
+let LPAR = 40
+let RPAR = 41
+let ASTERISK = 42
+let PLUS = 43
+let HYPHEN = 45
+let COLON = 58
+let LT = 60
+let EQ = 61
+let GT = 62
+let LBRACK = 91
+let BACKSLASH = 92
+let RBRACK = 93
+let CARET = 94
+let UNDERSCORE = 95
+let GRAVE = 96
+let PIPE = 124
+let TILDE = 126
+
+class enum Kind {
+  case Block(Int)
+  case BracketClose
+  case BracketOpen
+  case Caret
+  case Colon
+  case EmptyLine
+  case FootnoteOpen
+  case Grave(Int)
+  case Greater
+  case Hash(Int)
+  case ImageOpen
+  case Indent
+  case Less
+  case OrderedList(Int)
+  case ParenClose
+  case ParenOpen
+  case Quote(Int)
+  case ReferenceOpen
+  case SoftBreak
+  case Strong
+  case Text
+  case ThematicBreak
+  case Tilde
+  case Underscore
+  case UnorderedList(Int)
+  case TableColumn
+  case TableHeader
+  case TableRow
+  case TableFooter
+
+  fn description -> String {
+    match self {
+      case Block(n) -> "a block opening/closing tag (\"{'='.repeat(n)}\")"
+      case Strong -> 'a strong emphasis symbol ("*")'
+      case BracketClose -> 'a closing bracket ("]")'
+      case BracketOpen -> 'an opening bracket ("[")'
+      case Colon -> 'a colon (":")'
+      case EmptyLine -> 'an empty line'
+      case Grave(1) -> 'a grave accent ("`")'
+      case Grave(n) -> "{n} grave (\"`\") accents"
+      case Greater -> 'a greater-than sign (">")'
+      case UnorderedList(_) -> 'an unordered list marker ("-")'
+      case Indent -> 'indentation'
+      case Less -> 'a less-than sign ("<")'
+      case ParenClose -> 'a closing parenthesis'
+      case ParenOpen -> 'an opening parenthesis'
+      case OrderedList(_) -> 'an ordered list marker ("1.")'
+      case SoftBreak -> 'a line break'
+      case Text -> 'regular text'
+      case Underscore -> 'an underscore ("_")'
+      case ImageOpen -> 'an image opening tag ("![")'
+      case Hash(1) -> 'a hash sign ("#")'
+      case Hash(n) -> "{n} hash (\"#\") signs"
+      case FootnoteOpen -> 'a footnote opening tag ("[^")'
+      case Quote(n) -> "{n} blockquote (\">\") signs"
+      case ReferenceOpen -> 'a reference opening tag ("[#")'
+      case ThematicBreak -> 'a thematic break tag ("---")'
+      case Caret -> 'a caret ("^")'
+      case Tilde -> 'a tilde ("~")'
+      case TableColumn -> 'a pipe ("|")'
+      case TableHeader -> 'a pipe followed by a hash ("|#")'
+      case TableRow -> 'a pipe followed by a hyphen ("|-")'
+      case TableFooter -> 'a pipe followed by a plus sign ("|+")'
+    }
+  }
+}
+
+impl Equal[Kind] for Kind {
+  fn pub ==(other: ref Kind) -> Bool {
+    match (self, other) {
+      case (Block(a), Block(b)) -> a == b
+      case (Strong, Strong) -> true
+      case (BracketClose, BracketClose) -> true
+      case (BracketOpen, BracketOpen) -> true
+      case (Colon, Colon) -> true
+      case (EmptyLine, EmptyLine) -> true
+      case (Grave(a), Grave(b)) -> a == b
+      case (Greater, Greater) -> true
+      case (UnorderedList(a), UnorderedList(b)) -> a == b
+      case (Indent, Indent) -> true
+      case (Less, Less) -> true
+      case (ParenClose, ParenClose) -> true
+      case (ParenOpen, ParenOpen) -> true
+      case (OrderedList(a), OrderedList(b)) -> a == b
+      case (SoftBreak, SoftBreak) -> true
+      case (Text, Text) -> true
+      case (Underscore, Underscore) -> true
+      case (ImageOpen, ImageOpen) -> true
+      case (Hash(a), Hash(b)) -> a == b
+      case (FootnoteOpen, FootnoteOpen) -> true
+      case (Quote(a), Quote(b)) -> a == b
+      case (ReferenceOpen, ReferenceOpen) -> true
+      case (ThematicBreak, ThematicBreak) -> true
+      case (Caret, Caret) -> true
+      case (Tilde, Tilde) -> true
+      case (TableColumn, TableColumn) -> true
+      case (TableHeader, TableHeader) -> true
+      case (TableFooter, TableFooter) -> true
+      case (TableRow, TableRow) -> true
+      case _ -> false
+    }
+  }
+}
+
+impl Format for Kind {
+  fn pub fmt(formatter: mut Formatter) {
+    match self {
+      case Block(n) -> formatter.tuple('Block').field(n).finish
+      case Strong -> formatter.tuple('Strong').finish
+      case Grave(n) -> formatter.tuple('Grave').field(n).finish
+      case BracketClose -> formatter.tuple('BracketClose').finish
+      case BracketOpen -> formatter.tuple('BracketOpen').finish
+      case Colon -> formatter.tuple('Colon').finish
+      case EmptyLine -> formatter.tuple('EmptyLine').finish
+      case UnorderedList(level) -> {
+        formatter.tuple('UnorderedList').field(level).finish
+      }
+      case Indent -> formatter.tuple('Indent').finish
+      case ParenClose -> formatter.tuple('ParenClose').finish
+      case ParenOpen -> formatter.tuple('ParenOpen').finish
+      case OrderedList(level) -> {
+        formatter.tuple('OrderedList').field(level).finish
+      }
+      case SoftBreak -> formatter.tuple('SoftBreak').finish
+      case Text -> formatter.tuple('Text').finish
+      case Underscore -> formatter.tuple('Underscore').finish
+      case Greater -> formatter.tuple('Greater').finish
+      case Less -> formatter.tuple('Less').finish
+      case ImageOpen -> formatter.tuple('ImageOpen').finish
+      case Hash(n) -> formatter.tuple('Hash').field(n).finish
+      case FootnoteOpen -> formatter.tuple('FootnoteOpen').finish
+      case Quote(n) -> formatter.tuple('Quote').field(n).finish
+      case ReferenceOpen -> formatter.tuple('ReferenceOpen').finish
+      case ThematicBreak -> formatter.tuple('ThematicBreak').finish
+      case Caret -> formatter.tuple('Caret').finish
+      case Tilde -> formatter.tuple('Tilde').finish
+      case TableColumn -> formatter.tuple('TableColumn').finish
+      case TableHeader -> formatter.tuple('TableHeader').finish
+      case TableRow -> formatter.tuple('TableRow').finish
+      case TableFooter -> formatter.tuple('TableFooter').finish
+    }
+  }
+}
+
+# A token produced by a Lexer.
+class Token {
+  let @kind: Kind
+  let @offset: Int
+  let @size: Int
+}
+
+impl Equal[Token] for Token {
+  fn pub ==(other: ref Token) -> Bool {
+    @kind == other.kind and @offset == other.offset and @size == other.size
+  }
+}
+
+impl Format for Token {
+  fn pub fmt(formatter: mut Formatter) {
+    formatter
+      .object('Token')
+      .field('kind', @kind)
+      .field('offset', @offset)
+      .field('size', @size)
+      .finish
+  }
+}
+
+# A simple lexer for Markdown documents.
+class Lexer {
+  let @input: ref Bytes
+  let @offset: Int
+  let @line_start: Bool
+
+  fn static new(input: ref Bytes) -> Lexer {
+    Lexer { @input = input, @offset = 0, @line_start = true }
+  }
+
+  fn current -> Option[Int] {
+    if @offset < @input.size {
+      Option.Some(@input.byte(@offset))
+    } else {
+      Option.None
+    }
+  }
+
+  fn peek -> Option[Int] {
+    let index = @offset + 1
+
+    if index < @input.size {
+      Option.Some(@input.byte(index))
+    } else {
+      Option.None
+    }
+  }
+
+  fn mut advance(size: Int) {
+    @offset += size
+    @line_start = false
+  }
+
+  fn mut advance_empty_line -> Bool {
+    let mut empty = false
+    let mut line_offset = @offset
+
+    loop {
+      match current {
+        case Some(SPACE or TAB or CR) -> advance(1)
+        case Some(LF) -> {
+          advance_line
+          line_offset = @offset
+          empty = true
+        }
+        case Some(_) -> {
+          # If we encounter a non-whitespace byte, we "discard" what we have
+          # buffered since the start of the line. This way any such whitespace
+          # is emitted as an Indent, instead of being consumed as part of the
+          # EmptyLine token.
+          @offset = line_offset
+          @line_start = true
+          break
+        }
+        case _ -> break
+      }
+    }
+
+    empty
+  }
+
+  fn mut advance_line {
+    advance(1)
+    @line_start = true
+  }
+
+  fn mut advance_while_spaces -> Int {
+    let start = @offset
+
+    loop {
+      match current {
+        case Some(SPACE or CR or TAB) -> advance(1)
+        case _ -> break
+      }
+    }
+
+    @offset - start
+  }
+
+  fn mut advance_if_space {
+    match current {
+      case Some(SPACE or CR or TAB) -> advance(1)
+      case _ -> {}
+    }
+  }
+
+  fn mut advance_if_newline {
+    match current {
+      case Some(LF) -> advance_line
+      case _ -> {}
+    }
+  }
+
+  fn mut advance_while(byte: Int) {
+    loop {
+      match current {
+        case Some(val) if val == byte -> advance(1)
+        case _ -> break
+      }
+    }
+  }
+
+  fn mut advance_while_text {
+    advance(1)
+
+    loop {
+      match current {
+        case Some(
+          ASTERISK
+            or BACKSLASH
+            or COLON
+            or GRAVE
+            or GT
+            or LBRACK
+            or LF
+            or LPAR
+            or LT
+            or RBRACK
+            or RPAR
+            or UNDERSCORE
+            or CARET
+            or TILDE
+        ) -> break
+        case Some(EXCL) -> match peek {
+          case Some(LBRACK) -> break
+          case _ -> advance(1)
+        }
+        case Some(_) -> advance(1)
+        case None -> break
+      }
+    }
+  }
+
+  fn mut single(kind: Kind) -> Token {
+    advance(1)
+    token(kind, @offset - 1)
+  }
+
+  fn mut single_without_spaces(kind: Kind) -> Token {
+    let token = single(kind)
+
+    advance_while_spaces
+    advance_if_newline
+    token
+  }
+
+  fn mut double(kind: Kind) -> Token {
+    advance(2)
+    token(kind, @offset - 2)
+  }
+
+  fn mut double_without_spaces(kind: Kind) -> Token {
+    let token = double(kind)
+
+    advance_while_spaces
+    advance_if_newline
+    token
+  }
+
+  fn mut list(start: Int, indent: Int, ordered: Bool) -> Token {
+    advance(1)
+
+    let token = if ordered {
+      token(Kind.OrderedList(indent), start)
+    } else {
+      token(Kind.UnorderedList(indent), start)
+    }
+
+    advance_while_spaces
+    token
+  }
+
+  fn mut text(start: Int) -> Token {
+    advance_while_text
+    token(Kind.Text, start)
+  }
+
+  fn token(kind: Kind, start: Int) -> Token {
+    Token { @kind = kind, @offset = start, @size = @offset - start }
+  }
+}
+
+impl Iter[Token] for Lexer {
+  fn pub mut next -> Option[Token] {
+    let start = @offset
+    let token = match current {
+      case Some(ASTERISK) -> single(Kind.Strong)
+      case Some(HYPHEN) if @line_start -> match peek {
+        case Some(HYPHEN) -> {
+          advance(1)
+
+          match peek {
+            case Some(HYPHEN) -> {
+              advance(2)
+
+              let token = token(Kind.ThematicBreak, start)
+
+              advance_if_newline
+              token
+            }
+            case _ -> token(Kind.Text, start)
+          }
+        }
+        case _ -> list(start, indent: 0, ordered: false)
+      }
+      case Some(PLUS) if @line_start -> list(start, indent: 0, ordered: true)
+      case Some(PIPE) if @line_start -> match peek {
+        case Some(EQ) -> double_without_spaces(Kind.TableHeader)
+        case Some(HYPHEN) -> double_without_spaces(Kind.TableRow)
+        case Some(PLUS) -> double_without_spaces(Kind.TableFooter)
+        case _ -> single_without_spaces(Kind.TableColumn)
+      }
+      case Some(COLON) -> single_without_spaces(Kind.Colon)
+      case Some(UNDERSCORE) -> single(Kind.Underscore)
+      case Some(LBRACK) -> match peek {
+        case Some(CARET) -> double(Kind.FootnoteOpen)
+        case Some(HASH) -> double(Kind.ReferenceOpen)
+        case _ -> single(Kind.BracketOpen)
+      }
+      case Some(CARET) -> single(Kind.Caret)
+      case Some(TILDE) -> single(Kind.Tilde)
+      case Some(RBRACK) -> single(Kind.BracketClose)
+      case Some(LPAR) -> single(Kind.ParenOpen)
+      case Some(RPAR) -> single(Kind.ParenClose)
+      case Some(LT) -> single(Kind.Less)
+      case Some(GT) -> {
+        advance(1)
+        advance_while(GT)
+
+        match @offset - start {
+          case 1 -> token(Kind.Greater, start)
+          case 2 -> token(Kind.Text, start)
+          case n -> {
+            let token = token(Kind.Quote(n), start)
+
+            advance_while_spaces
+            advance_if_newline
+            token
+          }
+        }
+      }
+      case Some(EQ) -> {
+        advance(1)
+        advance_while(EQ)
+
+        let size = @offset - start
+
+        if size <= 2 {
+          token(Kind.Text, start)
+        } else {
+          let tok = token(Kind.Block(size), start)
+
+          advance_while_spaces
+          tok
+        }
+      }
+      case Some(EXCL) -> {
+        advance(1)
+
+        match current {
+          case Some(LBRACK) -> {
+            advance(1)
+            token(Kind.ImageOpen, start)
+          }
+          case _ -> token(Kind.Text, start)
+        }
+      }
+      case Some(GRAVE) -> {
+        advance(1)
+        advance_while(GRAVE)
+        token(Kind.Grave(@offset - start), start)
+      }
+      case Some(HASH) -> {
+        advance(1)
+
+        loop {
+          match current {
+            case Some(HASH) if @offset - start < 6 -> advance(1)
+            case _ -> break
+          }
+        }
+
+        # We only treat a sequence of hash signs as a heading if the final hash
+        # is followed by a space. This way sentences such as "I'm employee #5"
+        # don't result in a paragraph followed by a heading with text "5".
+        match current {
+          case Some(SPACE or TAB or CR) -> {
+            let token = token(Kind.Hash(@offset - start), start)
+
+            # Whitespace after the hash sign is ignored, such that e.g. `# Foo`
+            # results in the text being "Foo" instead of " Foo".
+            advance_while_spaces
+            token
+          }
+          case _ -> text(start)
+        }
+      }
+      case Some(LF) -> {
+        advance_line
+
+        if advance_empty_line {
+          token(Kind.EmptyLine, start)
+        } else if current.some? {
+          token(Kind.SoftBreak, start)
+        } else {
+          return Option.None
+        }
+      }
+      case Some(SPACE or CR or TAB) if @line_start -> {
+        let indent = advance_while_spaces
+
+        # Indented list markers are turned into a single token, as this makes it
+        # easier for the parser to build an AST.
+        match current {
+          case Some(HYPHEN) -> list(start, indent, ordered: false)
+          case Some(PLUS) -> list(start, indent, ordered: true)
+          case _ -> token(Kind.Indent, start)
+        }
+      }
+      case Some(BACKSLASH) -> {
+        advance(1)
+
+        match current {
+          case Some(
+            ASTERISK
+              or BACKSLASH
+              or CARET
+              or COLON
+              or EXCL
+              or GT
+              or HASH
+              or LBRACK
+              or LPAR
+              or LT
+              or PIPE
+              or RBRACK
+              or RPAR
+              or TILDE
+              or UNDERSCORE
+          ) -> { advance(1) }
+          case _ -> {}
+        }
+
+        token(Kind.Text, @offset - 1)
+      }
+      case Some(_) -> text(start)
+      case _ -> return Option.None
+    }
+
+    Option.Some(token)
+  }
+}

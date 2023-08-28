@@ -1,9 +1,19 @@
 import std.env
 import std.test.(Filter, Tests)
 
+import markdown.test_generator
+import markdown.test_lexer
+import markdown.test_parser
+import test_markdown
+
 class async Main {
   fn async main {
     let tests = Tests.new
+
+    test_generator.tests(tests)
+    test_lexer.tests(tests)
+    test_markdown.tests(tests)
+    test_parser.tests(tests)
 
     tests.filter = Filter.from_string(env.arguments.opt(0).unwrap_or(''))
     tests.run

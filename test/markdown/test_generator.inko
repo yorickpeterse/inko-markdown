@@ -1,0 +1,171 @@
+import markdown.generator.Html
+import markdown.parser.(Node, Parser)
+import std.test.Tests
+
+fn gen(input: String) -> String {
+  let doc = match Parser.new(input).parse {
+    case Ok(doc) -> doc
+    case Error(err) -> panic("failed to parse `{input}`: {err}")
+  }
+
+  Html.new(doc).generate.to_string
+}
+
+fn pub tests(t: mut Tests) {
+  t.test('Regular text') fn (t) {
+    t.equal(gen('abc'), '<p>abc</p>')
+  }
+
+  t.test('Emphasis text') fn (t) {
+    t.equal(gen('_abc_'), '<p><em>abc</em></p>')
+  }
+
+  t.test('Strong text') fn (t) {
+    t.equal(gen('*abc*'), '<p><strong>abc</strong></p>')
+  }
+
+  t.test('Code spans') fn (t) {
+    t.equal(gen('`abc`'), '<p><code>abc</code></p>')
+    t.equal(gen('`<>`'), '<p><code>&lt;&gt;</code></p>')
+  }
+
+  t.test('Code blocks') fn (t) {
+    t.equal(gen("```\nfoo\n```"), "<pre><code>foo\n</code></pre>")
+    t.equal(
+      gen("```html\nfoo\n```"),
+      "<pre><code data-language=\"html\">foo\n</code></pre>"
+    )
+  }
+
+  t.test('Links') fn (t) {
+    t.equal(gen('<foo>'), '<p><a href="foo">foo</a></p>')
+    t.equal(gen('[*a*](b)'), '<p><a href="b"><strong>a</strong></a></p>')
+    t.equal(gen('[*a*][b]'), '<p><a><strong>a</strong></a></p>')
+    t.equal(
+      gen("[*a*][b]\n[#b]: foo"), '<p><a href="foo"><strong>a</strong></a></p>'
+    )
+  }
+
+  t.test('Images') fn (t) {
+    t.equal(gen('![a](b)'), '<p><img src="b" alt="a" /></p>')
+    t.equal(gen('![a][b]'), '<p><img alt="a" /></p>')
+    t.equal(gen("![a][b]\n[#b]: b"), '<p><img src="b" alt="a" /></p>')
+  }
+
+  t.test('Footnotes') fn (t) {
+    t.equal(gen('[^a]'), '<p></p>')
+    t.equal(
+      gen("[^a]\n[^a]: foo"),
+      '\
+<p><a href="#footnote-1" class="footnote"><sup>1</sup></a></p>\
+<div class="footnotes">\
+  <ol><li id="footnote-1">foo</li></ol>\
+</div>\
+'
+    )
+  }
+
+  t.test('Disabling footnotes') fn (t) {
+    let doc = Parser.new("[^a]\n[^a]: foo").parse.unwrap
+    let gen = Html.new(doc)
+
+    gen.enable_footnotes = false
+    t.equal(gen.generate.to_string, '<p></p>')
+  }
+
+  t.test('Lists') fn (t) {
+    t.equal(gen('- *a*'), '<ul><li><strong>a</strong></li></ul>')
+    t.equal(gen('+ *a*'), '<ol><li><strong>a</strong></li></ol>')
+  }
+
+  t.test('Blockquotes') fn (t) {
+    t.equal(gen(">>>\na\n>>>"), '<blockquote><p>a</p></blockquote>')
+  }
+
+  t.test('Headings') fn (t) {
+    t.equal(gen('# a'), '<h1>a</h1>')
+    t.equal(gen('## a'), '<h2>a</h2>')
+    t.equal(gen('### a'), '<h3>a</h3>')
+    t.equal(gen('#### a'), '<h4>a</h4>')
+    t.equal(gen('##### a'), '<h5>a</h5>')
+    t.equal(gen('###### a'), '<h6>a</h6>')
+  }
+
+  t.test('Superscripts and subscripts') fn (t) {
+    t.equal(gen('^a^'), '<p><sup>a</sup></p>')
+    t.equal(gen('~a~'), '<p><sub>a</sub></p>')
+  }
+
+  t.test('Custom blocks') fn (t) {
+    t.equal(gen("===\nfoo\n==="), '<div><p>foo</p></div>')
+    t.equal(gen("=== abc\nfoo\n==="), '<div class="abc"><p>foo</p></div>')
+  }
+
+  t.test('Thematic breaks') fn (t) {
+    t.equal(gen('---'), '<hr />')
+  }
+
+  t.test('Tables') fn (t) {
+    t.equal(
+      gen(
+        '
+|-
+| tb 1
+| tb 2
+        '
+      ),
+      '<table><tbody><tr><td>tb 1</td><td>tb 2</td></tr></tbody></table>'
+    )
+
+    t.equal(
+      gen(
+        '
+|=
+| th 1
+| th 2
+        '
+      ),
+      '<table><thead><tr><th>th 1</th><th>th 2</th></tr></thead></table>'
+    )
+
+    t.equal(
+      gen(
+        '
+|=
+| th 1
+| th 2
+|-
+| tb 1
+| tb 2
+        '
+      ),
+      '\
+<table>\
+  <thead><tr><th>th 1</th><th>th 2</th></tr></thead>\
+  <tbody><tr><td>tb 1</td><td>tb 2</td></tr></tbody>\
+</table>'
+    )
+
+    t.equal(
+      gen(
+        '
+|=
+| th 1
+| th 2
+|-
+| tb 1
+| tb 2
+|+
+| tf 1
+| tf 2
+        '
+      ),
+      '\
+<table>\
+  <thead><tr><th>th 1</th><th>th 2</th></tr></thead>\
+  <tbody><tr><td>tb 1</td><td>tb 2</td></tr></tbody>\
+  <tfoot><tr><td>tf 1</td><td>tf 2</td></tr></tfoot>\
+</table>'
+    )
+  }
+}

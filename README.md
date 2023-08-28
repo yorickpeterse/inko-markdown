@@ -30,24 +30,32 @@ this means that you can't seamlessly switch between Djot and Markdown.
 # Differences with Markdown
 
 - There are only two ways of writing lists: `- item` for unordered lists, and
-  `1. item` for ordered lists. Ordered lists can still start with any number in
-  the range `0-9`, but the actual number is ignored when generating HTML (i.e
-  the order always dictates the actual numbers used).
+  `1. item` for ordered lists. Other numbers (e.g. `3.`) for ordered lists
+  aren't supported.
+- `**word**` is `<strong>word</strong>` and `_word_` is `<em>word</em>`. Nesting
+  the same emphasis type isn't supported, and we only support single underscores
+  for regular emphasis. This means `__word__` results in
+  `<em></em>word<em></em>`.
 - No support for setext headings.
-- Hard line breaks aren't supported, as the need for this is extremely rare.
+- Hard line breaks use a trailing `\` like Djot, instead of two spaces, as
+  editors are likely to remove trailing whitespace, and because trailing
+  whitespace isn't easily visible.
 - No support for inline HTML, decoupling the Markup from the browser, and
   removing the need for also including an HTML parser.
 - No support for indented code blocks, only fenced code blocks are supported.
 - In general, the parser is much more strict/pedantic about how things should be
   parsed. This makes maintenance easier and leads to more consistent and
   predictable behaviour.
-- No auto linking, just use `<link>` or `[text](link)` instead.
+- No auto linking based on the URI scheme, just use `<link>` or `[text](link)`
+  instead.
 - Anything else I forgot to implement or just don't care for :)
 - No support for triple strong/emphasis delimiters (e.g. `***foo***`).
 - `[foo][bar]` is always a link with text "foo" using reference "bar". If "bar"
   isn't defined, the link URL is empty.
-- Whitespace used for indentation (e.g. nested lists) must use spaces. Using
-  tabs results in a parser error.
+- Using triple grave accents, even in inline contexts, always results in a code
+  block.
+- List values are restricted to inline elements or other lists, meaning you
+  can't put e.g. a title in a list value.
 
 # Extensions
 
@@ -57,13 +65,7 @@ this means that you can't seamlessly switch between Djot and Markdown.
   Markdown](https://python-markdown.github.io/extensions/admonition/) syntax.
 - [Front matter](https://jekyllrb.com/docs/front-matter/), using a simple
   YAML-like syntax (that isn't a pain to parse).
-
-# Syntax
-
-## Base syntax
-
-The basic syntax is the same as Markdown, i.e. `*foo*` or `_foo_` for emphasized
-text, and `**foo**` for strong text.
+- Footnotes
 
 ## Fenced code blocks
 
@@ -131,6 +133,19 @@ Some examples:
 
 !!! note
     This is the body.
+```
+
+## Footnotes
+
+Footnotes are referred to using `[^footnote]` name, and defined using
+`[^footnote]: value`. Footnote values are limited to inline elements, but their
+values can be wrapped across multiple lines, as long as each line starts with at
+least a single space:
+
+```markdown
+[^footnote]: foo
+  bar
+  baz
 ```
 
 ## Front matter

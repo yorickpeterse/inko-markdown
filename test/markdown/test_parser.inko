@@ -1,0 +1,626 @@
+import markdown.parser.(Document, Link, Node, Parser)
+import std.test.Tests
+
+fn parse_refs(input: String) -> Map[String, String] {
+  match Parser.new(input).parse {
+    case Ok({ @references = refs }) -> refs
+    case _ -> Map.new
+  }
+}
+
+fn parse_footnotes(input: String) -> Map[String, Array[Node]] {
+  match Parser.new(input).parse {
+    case Ok({ @footnotes = vals }) -> vals
+    case _ -> Map.new
+  }
+}
+
+fn parse(input: String) -> Result[Array[Node], Int] {
+  match Parser.new(input).parse {
+    case Ok({ @children = nodes }) -> Result.Ok(nodes)
+    case Error(err) -> Result.Error(err.offset)
+  }
+}
+
+fn parse_invalid(input: String) -> Option[String] {
+  Parser.new(input).parse.error.map fn (e) { e.to_string }
+}
+
+fn p(children: Array[Node]) -> Node {
+  Node.Paragraph(children)
+}
+
+fn em(children: Array[Node]) -> Node {
+  Node.Emphasis(children)
+}
+
+fn strong(children: Array[Node]) -> Node {
+  Node.Strong(children)
+}
+
+fn link(link: Link, children: Array[Node]) -> Node {
+  Node.Link(link, children)
+}
+
+fn img(link: Link, alt: String) -> Node {
+  Node.Image(link, alt)
+}
+
+fn ref_link(name: String, children: Array[Node]) -> Node {
+  Node.Link(Link.Reference(name), children)
+}
+
+fn cspan(body: String) -> Node {
+  Node.CodeSpan(body)
+}
+
+fn cblock(info: Option[String], body: String) -> Node {
+  Node.CodeBlock(info, body)
+}
+
+fn text(value: String) -> Node {
+  Node.Text(value)
+}
+
+fn h(level: Int, children: Array[Node]) -> Node {
+  Node.Heading(level, children)
+}
+
+fn footnote(name: String) -> Node {
+  Node.Footnote(name)
+}
+
+fn ul(children: Array[Node]) -> Node {
+  Node.UnorderedList(children)
+}
+
+fn ol(children: Array[Node]) -> Node {
+  Node.OrderedList(children)
+}
+
+fn li(children: Array[Node]) -> Node {
+  Node.ListItem(children)
+}
+
+fn quote(children: Array[Node]) -> Node {
+  Node.Quote(children)
+}
+
+fn block(tag: String, children: Array[Node]) -> Node {
+  Node.Block(tag, children)
+}
+
+fn hr -> Node {
+  Node.ThematicBreak
+}
+
+fn sup(children: Array[Node]) -> Node {
+  Node.Superscript(children)
+}
+
+fn sub(children: Array[Node]) -> Node {
+  Node.Subscript(children)
+}
+
+fn table(
+  head: Array[Array[Array[Node]]],
+  body: Array[Array[Array[Node]]],
+  footer: Array[Array[Array[Node]]],
+) -> Node {
+  Node.Table(head, body, footer)
+}
+
+fn tr(columns: Array[Array[Node]]) -> Array[Array[Node]] {
+  columns
+}
+
+fn pub tests(t: mut Tests) {
+  t.test('Regular text') fn (t) {
+    t.equal(parse('a'), Result.Ok([p([text('a')])]))
+    t.equal(parse("a\n"), Result.Ok([p([text('a')])]))
+    t.equal(parse("a\nb"), Result.Ok([p([text('a'), text("\n"), text("b")])]))
+    t.equal(parse("a\n\nb"), Result.Ok([p([text('a')]), p([text("b")])]))
+    t.equal(parse("a\n\n\n\nb"), Result.Ok([p([text('a')]), p([text("b")])]))
+    t.equal(parse(':'), Result.Ok([p([text(':')])]))
+    t.equal(parse('('), Result.Ok([p([text('(')])]))
+    t.equal(parse(')'), Result.Ok([p([text(')')])]))
+    t.equal(parse(']'), Result.Ok([p([text(']')])]))
+    t.equal(parse('a>'), Result.Ok([p([text('a'), text('>')])]))
+    t.equal(parse('  '), Result.Ok([]))
+    t.equal(parse('.'), Result.Ok([p([text('.')])]))
+    t.equal(parse(''), Result.Ok([]))
+    t.equal(parse("\n"), Result.Ok([]))
+    t.equal(
+      parse(' (a) '),
+      Result.Ok([p([text('('), text('a'), text(')'), text(' ')])])
+    )
+  }
+
+  t.test('Strong text') fn (t) {
+    t.equal(parse('*foo*'), Result.Ok([p([strong([text('foo')])])]))
+    t.equal(
+      parse(' *foo* '),
+      Result.Ok([p([strong([text('foo')]), text(' ')])])
+    )
+
+    t.equal(parse('* foo *'), Result.Ok([p([strong([text(' foo ')])])]))
+    t.equal(
+      parse("*\na\n*"),
+      Result.Ok([p([strong([text("\n"), text('a'), text("\n")])])])
+    )
+
+    t.equal(
+      parse('a*b*c'),
+      Result.Ok([p([text('a'), strong([text('b')]), text('c')])])
+    )
+  }
+
+  t.test('Emphasized text') fn (t) {
+    t.equal(parse('_foo_'), Result.Ok([p([em([text('foo')])])]))
+    t.equal(parse(' _foo_ '), Result.Ok([p([em([text('foo')]), text(' ')])]))
+    t.equal(parse('_ foo _'), Result.Ok([p([em([text(' foo ')])])]))
+    t.equal(
+      parse("_\na\n_"),
+      Result.Ok([p([em([text("\n"), text('a'), text("\n")])])])
+    )
+
+    t.equal(
+      parse('a_b_c'),
+      Result.Ok([p([text('a'), em([text('b')]), text('c')])])
+    )
+  }
+
+  t.test('Mixing strong and emphasized text') fn (t) {
+    t.equal(parse('*_foo_*'), Result.Ok([p([strong([em([text('foo')])])])]))
+    t.equal(parse('_*foo*_'), Result.Ok([p([em([strong([text('foo')])])])]))
+    t.equal(
+      parse('_ * foo * _'),
+      Result.Ok([p([em([text(' '), strong([text(' foo ')]), text(' ')])])])
+    )
+  }
+
+  t.test('Inline code spans') fn (t) {
+    t.equal(parse('a`b`c'), Result.Ok([p([text('a'), cspan('b'), text('c')])]))
+    t.equal(parse('` `'), Result.Ok([p([cspan(' ')])]))
+    t.equal(parse('` a `'), Result.Ok([p([cspan(' a ')])]))
+    t.equal(parse('``a``'), Result.Ok([p([cspan('a')])]))
+    t.equal(parse("`a\nb`"), Result.Ok([p([cspan("a\nb")])]))
+    t.equal(parse("``\nb``"), Result.Ok([p([cspan("\nb")])]))
+    t.equal(parse('`\\`'), Result.Ok([p([cspan('\\')])]))
+
+    t.true(parse('``').error?)
+    t.true(parse('a`b').error?)
+    t.true(parse('` `a``').error?)
+  }
+
+  t.test('Code blocks') fn (t) {
+    t.equal(parse("```\n```"), Result.Ok([cblock(Option.None, '')]))
+    t.equal(parse("```\na\n```"), Result.Ok([cblock(Option.None, "a\n")]))
+    t.equal(
+      parse("```foo\na\n```"),
+      Result.Ok([cblock(Option.Some('foo'), "a\n")])
+    )
+
+    t.equal(
+      parse("```foo bar\na\n```"),
+      Result.Ok([cblock(Option.Some('foo bar'), "a\n")])
+    )
+
+    t.equal(
+      parse("a```\nfoo\n```"),
+      Result.Ok([p([text('a')]), cblock(Option.None, "foo\n")])
+    )
+
+    t.true(parse("``````").error?)
+  }
+
+  t.test('Auto links') fn (t) {
+    t.equal(parse('<>'), Result.Ok([p([link(Link.Direct(''), [])])]))
+    t.equal(parse('<foo>'), Result.Ok([p([link(Link.Direct('foo'), [])])]))
+    t.equal(parse('<a b>'), Result.Ok([p([link(Link.Direct('a b'), [])])]))
+    t.equal(parse('<a_(b)>'), Result.Ok([p([link(Link.Direct('a_(b)'), [])])]))
+    t.equal(parse('<*a*>'), Result.Ok([p([link(Link.Direct('*a*'), [])])]))
+  }
+
+  t.test('Regular links') fn (t) {
+    t.equal(parse('[]()'), Result.Ok([p([link(Link.Direct(''), [])])]))
+    t.equal(
+      parse('[a](b)'),
+      Result.Ok([p([link(Link.Direct('b'), [text('a')])])])
+    )
+
+    t.equal(
+      parse('[a](a_\\(b\\))'),
+      Result.Ok([p([link(Link.Direct('a_(b)'), [text('a')])])])
+    )
+
+    t.equal(
+      parse('[*a*](b)'),
+      Result.Ok([p([link(Link.Direct('b'), [strong([text('a')])])])])
+    )
+
+    t.equal(
+      parse('*[*a*](b)*'),
+      Result.Ok([p([strong([link(Link.Direct('b'), [strong([text('a')])])])])])
+    )
+
+    t.equal(parse('*[a*](b)*'), Result.Error(9))
+  }
+
+  t.test('Reference links') fn (t) {
+    t.equal(parse('[][]'), Result.Ok([p([link(Link.Reference(''), [])])]))
+    t.equal(
+      parse('[a][b]'),
+      Result.Ok([p([link(Link.Reference('b'), [text('a')])])])
+    )
+
+    t.equal(
+      parse('[*a*][b]'),
+      Result.Ok([p([link(Link.Reference('b'), [strong([text('a')])])])])
+    )
+  }
+
+  t.test('Regular images') fn (t) {
+    t.equal(parse('![]()'), Result.Ok([p([img(Link.Direct(''), '')])]))
+    t.equal(parse('![a](b)'), Result.Ok([p([img(Link.Direct('b'), 'a')])]))
+    t.equal(parse('![*a*](b)'), Result.Ok([p([img(Link.Direct('b'), '*a*')])]))
+  }
+
+  t.test('Reference images') fn (t) {
+    t.equal(parse('![][]'), Result.Ok([p([img(Link.Reference(''), '')])]))
+    t.equal(parse('![a][b]'), Result.Ok([p([img(Link.Reference('b'), 'a')])]))
+    t.equal(
+      parse('![*a*][b]'),
+      Result.Ok([p([img(Link.Reference('b'), '*a*')])])
+    )
+  }
+
+  t.test('Headings') fn (t) {
+    t.equal(parse('# '), Result.Ok([h(1, [])]))
+    t.equal(parse('# Foo'), Result.Ok([h(1, [text('Foo')])]))
+    t.equal(parse('## Foo'), Result.Ok([h(2, [text('Foo')])]))
+    t.equal(parse('### Foo'), Result.Ok([h(3, [text('Foo')])]))
+    t.equal(parse('#### Foo'), Result.Ok([h(4, [text('Foo')])]))
+    t.equal(parse('##### Foo'), Result.Ok([h(5, [text('Foo')])]))
+    t.equal(parse('###### Foo'), Result.Ok([h(6, [text('Foo')])]))
+    t.equal(parse('# _Foo_'), Result.Ok([h(1, [em([text('Foo')])])]))
+    t.equal(parse("a\n# b"), Result.Ok([p([text('a')]), h(1, [text('b')])]))
+  }
+
+  t.test('Link reference definitions') fn (t) {
+    t.equal(parse("a\n[#a]:b"), Result.Ok([p([text('a')])]))
+    t.equal(parse_refs('[#a]:').opt('a'), Option.Some(''))
+    t.equal(parse_refs('[#a]: b').opt('a'), Option.Some('b'))
+    t.equal(parse_refs('[#a]: *b*').opt('a'), Option.Some('*b*'))
+    t.equal(parse_refs('[#*a*]: *b*').opt('*a*'), Option.Some('*b*'))
+  }
+
+  t.test('Footnotes') fn (t) {
+    t.equal(parse('[^a]'), Result.Ok([p([footnote('a')])]))
+    t.equal(parse('[^a][^b]'), Result.Ok([p([footnote('a'), footnote('b')])]))
+  }
+
+  t.test('Footnote definitions') fn (t) {
+    t.equal(
+      parse_footnotes('[^a]: foo').opt('a'),
+      Option.Some(ref [text('foo')])
+    )
+
+    t.equal(
+      parse_footnotes('[^a]: *foo*').opt('a'),
+      Option.Some(ref [strong([text('foo')])])
+    )
+
+    t.equal(
+      parse_footnotes("[^a]: foo\n[^a]: bar").opt('a'),
+      Option.Some(ref [text('bar')])
+    )
+
+    t.equal(
+      parse_footnotes("[^a]: foo\n bar").opt('a'),
+      Option.Some(ref [text('foo'), text("\n"), text("bar")])
+    )
+
+    t.equal(
+      parse_footnotes("[^a]: foo\n\nbar").opt('a'),
+      Option.Some(ref [text('foo')])
+    )
+  }
+
+  t.test('Unordered lists') fn (t) {
+    t.equal(parse('- a'), Result.Ok([ul([li([text('a')])])]))
+    t.equal(
+      parse("- a\n- b"),
+      Result.Ok([ul([li([text('a')]), li([text('b')])])])
+    )
+
+    t.equal(
+      parse("- a\n  - b\n  - c"),
+      Result.Ok([ul([li([text('a'), ul([li([text('b')]), li([text('c')])])])])])
+    )
+
+    t.equal(
+      parse("- a\n  - b\n- c"),
+      Result.Ok([ul([li([text('a'), ul([li([text('b')])])]), li([text('c')])])])
+    )
+
+    t.equal(parse("- a\nb"), Result.Ok([ul([li([text('a')])]), p([text('b')])]))
+    t.equal(
+      parse("- a\n  b"),
+      Result.Ok([ul([li([text('a'), text("\n"), text('b')])])])
+    )
+
+    t.equal(
+      parse(
+        '\
+- a
+  - b
+    foo
+    - c
+  - d
+- e\
+        '
+      ),
+      Result.Ok([
+        ul([
+          li([
+            text('a'),
+            ul([
+              li([text('b'), text("\n"), text('foo'), ul([li([text('c')])])]),
+              li([text('d')])
+            ])
+          ])
+          li([text('e')])
+        ])
+      ])
+    )
+  }
+
+  t.test('Ordered lists') fn (t) {
+    t.equal(parse('+ a'), Result.Ok([ol([li([text('a')])])]))
+    t.equal(
+      parse("+ a\n+ b"),
+      Result.Ok([ol([li([text('a')]), li([text('b')])])])
+    )
+
+    t.equal(
+      parse("+ a\n  + b\n  + c"),
+      Result.Ok([ol([li([text('a'), ol([li([text('b')]), li([text('c')])])])])])
+    )
+
+    t.equal(
+      parse("+ a\n  + b\n+ c"),
+      Result.Ok([ol([li([text('a'), ol([li([text('b')])])]), li([text('c')])])])
+    )
+
+    t.equal(parse("+ a\nb"), Result.Ok([ol([li([text('a')])]), p([text('b')])]))
+    t.equal(
+      parse("+ a\n  b"),
+      Result.Ok([ol([li([text('a'), text("\n"), text('b')])])])
+    )
+
+    t.equal(
+      parse(
+        '\
++ a
+  + b
+    foo
+    + c
+  + d
++ e\
+        '
+      ),
+      Result.Ok([
+        ol([
+          li([
+            text('a'),
+            ol([
+              li([text('b'), text("\n"), text('foo'), ol([li([text('c')])])]),
+              li([text('d')])
+            ])
+          ])
+          li([text('e')])
+        ])
+      ])
+    )
+  }
+
+  t.test('Mixed lists') fn (t) {
+    t.equal(
+      parse("- a\n+ b"),
+      Result.Ok([ul([li([text('a')])]), ol([li([text('b')])])])
+    )
+
+    t.equal(
+      parse("+ a\n- b"),
+      Result.Ok([ol([li([text('a')])]), ul([li([text('b')])])])
+    )
+
+    t.equal(
+      parse("- a\n  + b"),
+      Result.Ok([ul([li([text('a'), ol([li([text('b')])])])])])
+    )
+
+    t.equal(
+      parse("+ a\n  - b"),
+      Result.Ok([ol([li([text('a'), ul([li([text('b')])])])])])
+    )
+  }
+
+  t.test('Block quotes') fn (t) {
+    t.equal(parse('>>> >>>'), Result.Ok([quote([])]))
+    t.equal(parse(">>>\na\n>>>"), Result.Ok([quote([p([text('a')])])]))
+    t.equal(
+      parse(
+        '\
+>>>
+a
+>>>>
+b
+>>>>
+c
+>>>'
+      ),
+      Result.Ok(
+        [quote([p([text('a')]), quote([p([text('b')])]), p([text('c')])])]
+      )
+    )
+
+    t.equal(
+      parse(">>>\n- a\n- b\n>>>"),
+      Result.Ok([quote([ul([li([text('a')]), li([text('b')])])])])
+    )
+
+    t.equal(
+      parse("- a\n>>>\n>>>"),
+      Result.Ok([ul([li([text('a')])]), quote([])])
+    )
+
+    t.equal(
+      parse("+ a\n>>>\n>>>"),
+      Result.Ok([ol([li([text('a')])]), quote([])])
+    )
+  }
+
+  t.test('Custom blocks') fn (t) {
+    t.equal(parse("===\n==="), Result.Ok([block('', [])]))
+    t.equal(parse("===\nfoo\n==="), Result.Ok([block('', [p([text('foo')])])]))
+    t.equal(parse("=== a\n==="), Result.Ok([block('a', [])]))
+    t.equal(parse("=== a\nb\n==="), Result.Ok([block('a', [p([text('b')])])]))
+    t.equal(
+      parse(
+        '
+=== outer
+a
+==== inner
+b
+====
+c
+===
+        '
+      ),
+      Result.Ok([
+        block(
+          'outer',
+          [p([text('a')]), block('inner', [p([text('b')])]), p([text('c')])]
+        )
+      ])
+    )
+  }
+
+  t.test('Thematic breaks') fn (t) {
+    t.equal(parse('---'), Result.Ok([hr]))
+  }
+
+  t.test('Superscripts and subscripts') fn (t) {
+    t.equal(
+      parse('a^b^c'), Result.Ok([p([text('a'), sup([text('b')]), text('c')])])
+    )
+
+    t.equal(
+      parse('a~b~c'), Result.Ok([p([text('a'), sub([text('b')]), text('c')])])
+    )
+  }
+
+  t.test('Tables') fn (t) {
+    t.equal(
+      parse(
+        '\
+|-
+| a
+| b'
+      ),
+      Result.Ok([table([], [tr([[text('a')], [text('b')]])], [])])
+    )
+
+    t.equal(
+      parse(
+        '\
+|-
+| a
+| b
+  c'
+      ),
+      Result.Ok([
+        table([], [tr([[text('a')], [text('b'), text("\n"), text('c')]])], [])
+      ])
+    )
+
+    t.equal(
+      parse(
+        '\
+|=
+| a
+| b'
+      ),
+      Result.Ok([table([tr([[text('a')], [text('b')]])], [], [])])
+    )
+
+    t.equal(
+      parse(
+        '\
+|=
+| a
+| b
+|-
+| c
+| d'
+      ),
+      Result.Ok([table(
+        [tr([[text('a')], [text('b')]])], [tr([[text('c')], [text('d')]])], []
+      )])
+    )
+
+    t.equal(
+      parse(
+        '\
+|=
+| a
+| b
+|-
+| c
+| d
+|+
+| e
+| f'
+      ),
+      Result.Ok([table(
+        [tr([[text('a')], [text('b')]])],
+        [tr([[text('c')], [text('d')]])],
+        [tr([[text('e')], [text('f')]])],
+      )])
+    )
+
+    t.equal(
+      parse(
+        '\
+|=
+| a1
+| b1
+|=
+| a2
+| b2
+|-
+| c1
+| d1
+|-
+| c2
+| d2
+|+
+| e1
+| f1
+|+
+| e2
+| f2'
+      ),
+      Result.Ok([table(
+        [tr([[text('a1')], [text('b1')]]), tr([[text('a2')], [text('b2')]])],
+        [tr([[text('c1')], [text('d1')]]), tr([[text('c2')], [text('d2')]])],
+        [tr([[text('e1')], [text('f1')]]), tr([[text('e2')], [text('f2')]])],
+      )])
+    )
+
+    t.equal(parse('| a'), Result.Error(0))
+    t.equal(parse('|+ a'), Result.Error(0))
+  }
+}

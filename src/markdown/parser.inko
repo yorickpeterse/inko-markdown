@@ -1,0 +1,815 @@
+# Parsing of Markdown documents into an Abstract Syntax Tree.
+import markdown.lexer.(Kind, Lexer, CR, GRAVE, SPACE, TAB, Token)
+import std.cmp.Equal
+import std.fmt.(Format, Formatter)
+import std.string.(Bytes, StringBuffer, ToString)
+
+# An error produced during parsing.
+class pub Error {
+  # A human readable description of the error.
+  let pub @message: String
+
+  # The byte offset in the input stream at which the error occurred.
+  let pub @offset: Int
+}
+
+impl Equal[Error] for Error {
+  fn pub ==(other: ref Error) -> Bool {
+    @message == other.message and @offset == other.offset
+  }
+}
+
+impl Format for Error {
+  fn pub fmt(formatter: mut Formatter) {
+    formatter
+      .object('Error')
+      .field('message', @message)
+      .field('offset', @offset)
+      .finish
+  }
+}
+
+impl ToString for Error {
+  fn pub to_string -> String {
+    @message
+  }
+}
+
+# A type describing the kind of link something is.
+class pub enum Link {
+  # A direct link, such as `[text](link here)`.
+  case Direct(String)
+
+  # A reference link, such as `[text][reference-name]`
+  case Reference(String)
+}
+
+impl Equal[Link] for Link {
+  fn pub ==(other: ref Link) -> Bool {
+    match (self, other) {
+      case (Direct(a), Direct(b)) -> a == b
+      case (Reference(a), Reference(b)) -> a == b
+      case _ -> false
+    }
+  }
+}
+
+impl Format for Link {
+  fn pub fmt(formatter: mut Formatter) {
+    match self {
+      case Direct(val) -> formatter.tuple('Direct').field(val).finish
+      case Reference(val) -> formatter.tuple('Reference').field(val).finish
+    }
+  }
+}
+
+# A parsed document.
+class pub Document {
+  let pub @children: Array[Node]
+  let pub @references: Map[String, String]
+  let pub @footnotes: Map[String, Array[Node]]
+}
+
+# A node in a Markdown AST.
+class pub enum Node {
+  # A custom block/div/container.
+  #
+  # The `String` argument is the tag/class of the block.
+  case Block(String, Array[Node])
+
+  # A block quote.
+  case Quote(Array[Node])
+
+  # A regular emphasis node.
+  case Emphasis(Array[Node])
+
+  # A paragraph node.
+  case Paragraph(Array[Node])
+
+  # A strong emphasis node.
+  case Strong(Array[Node])
+
+  # An inline code span.
+  case CodeSpan(String)
+
+  # A code block with an optional info string.
+  case CodeBlock(Option[String], String)
+
+  # Regular text.
+  #
+  # The `String` argument is the text value.
+  case Text(String)
+
+  # A link with an optional body.
+  case Link(Link, Array[Node])
+
+  # An image.
+  #
+  # The second argument is the image text.
+  case Image(Link, String)
+
+  # A heading.
+  #
+  # The first argument is the heading level, in a range from 1 to 6. The second
+  # argument is the list of child nodes.
+  case Heading(Int, Array[Node])
+
+  # A footnote.
+  #
+  # The first argument is the name of the footnote.
+  case Footnote(String)
+
+  # An unordered list.
+  case UnorderedList(Array[Node])
+
+  # An ordered list.
+  case OrderedList(Array[Node])
+
+  # A single list item.
+  case ListItem(Array[Node])
+
+  # A thematic break/horizontal ruler.
+  case ThematicBreak
+
+  # A superscript node.
+  case Superscript(Array[Node])
+
+  # A subscript node.
+  case Subscript(Array[Node])
+
+  # A table.
+  #
+  # The arguments are (in this order): the header rows, the body rows, and the
+  # footer rows. Each value is an array of rows, containing an array of columns,
+  # containing an array of markup nodes.
+  case Table(
+    Array[Array[Array[Node]]],
+    Array[Array[Array[Node]]],
+    Array[Array[Array[Node]]],
+  )
+}
+
+impl Equal[Node] for Node {
+  fn pub ==(other: ref Node) -> Bool {
+    match (self, other) {
+      case (Block(a1, a2), Block(b1, b2)) -> a1 == b1 and a2 == b2
+      case (Quote(a), Quote(b)) -> a == b
+      case (Emphasis(a), Emphasis(b)) -> a == b
+      case (Paragraph(a), Paragraph(b)) -> a == b
+      case (Strong(a), Strong(b)) -> a == b
+      case (CodeSpan(a), CodeSpan(b)) -> a == b
+      case (CodeBlock(a1, a2), CodeBlock(b1, b2)) -> a1 == b1 and a2 == b2
+      case (Text(a), Text(b)) -> a == b
+      case (Link(a1, a2), Link(b1, b2)) -> a1 == b1 and a2 == b2
+      case (Image(a1, a2), Image(b1, b2)) -> a1 == b1 and a2 == b2
+      case (Heading(a1, a2), Heading(b1, b2)) -> a1 == b1 and a2 == b2
+      case (Footnote(a), Footnote(b)) -> a == b
+      case (UnorderedList(a), UnorderedList(b)) -> a == b
+      case (OrderedList(a), OrderedList(b)) -> a == b
+      case (ListItem(a), ListItem(b)) -> a == b
+      case (ThematicBreak, ThematicBreak) -> true
+      case (Superscript(a), Superscript(b)) -> a == b
+      case (Subscript(a), Subscript(b)) -> a == b
+      case (Table(a1, a2, a3), Table(b1, b2, b3)) -> {
+        a1 == b1 and a2 == b2 and a3 == b3
+      }
+      case _ -> false
+    }
+  }
+}
+
+impl Format for Node {
+  fn pub fmt(formatter: mut Formatter) {
+    match self {
+      case Block(tag, nodes) -> {
+        formatter.tuple('Block').field(tag).field(nodes).finish
+      }
+      case Quote(nodes) -> {
+        formatter.tuple('Quote').field(nodes).finish
+      }
+      case Emphasis(nodes) -> formatter.tuple('Emphasis').field(nodes).finish
+      case Paragraph(nodes) -> formatter.tuple('Paragraph').field(nodes).finish
+      case Strong(nodes) -> formatter.tuple('Strong').field(nodes).finish
+      case CodeSpan(nodes) -> formatter.tuple('CodeSpan').field(nodes).finish
+      case CodeBlock(info, nodes) -> {
+        formatter.tuple('CodeBlock').field(info).field(nodes).finish
+      }
+      case Text(v) -> formatter.tuple('Text').field(v).finish
+      case Link(url, nodes) -> {
+        formatter.tuple('Link').field(url).field(nodes).finish
+      }
+      case Image(url, text) -> {
+        formatter.tuple('Image').field(url).field(text).finish
+      }
+      case Heading(level, nodes) -> {
+        formatter.tuple('Heading').field(level).field(nodes).finish
+      }
+      case Footnote(name) -> formatter.tuple('Footnote').field(name).finish
+      case UnorderedList(n) -> formatter.tuple('UnorderedList').field(n).finish
+      case OrderedList(n) -> formatter.tuple('OrderedList').field(n).finish
+      case ListItem(nodes) -> formatter.tuple('ListItem').field(nodes).finish
+      case ThematicBreak -> formatter.tuple('ThematicBreak').finish
+      case Superscript(n) -> formatter.tuple('Superscript').field(n).finish
+      case Subscript(n) -> formatter.tuple('Subscript').field(n).finish
+      case Table(head, body, foot) -> {
+        formatter.tuple('Table').field(head).field(body).field(foot).finish
+      }
+    }
+  }
+}
+
+class enum Inline {
+  case Default
+  case Emphasis
+  case Strong
+  case Link
+  case Footnote
+  case List
+  case Superscript
+  case Subscript
+  case Cell
+}
+
+class enum Block {
+  case Default
+  case Quote(Int)
+  case Custom(Int)
+}
+
+# A parser that turns a Markdown document into an AST.
+class pub Parser {
+  let @lexer: Lexer
+  let @peeked: Option[Option[Token]]
+  let @references: Map[String, String]
+  let @footnotes: Map[String, Array[Node]]
+
+  # Returns a new `Parser` that will parse the given input.
+  fn pub static new(input: ref Bytes) -> Parser {
+    Parser {
+      @lexer = Lexer.new(input),
+      @peeked = Option.None,
+      @references = Map.new,
+      @footnotes = Map.new,
+    }
+  }
+
+  fn mut next_token -> Option[Token] {
+    match @peeked := Option.None {
+      case Some(tok) -> tok
+      case _ -> @lexer.next
+    }
+  }
+
+  fn mut skip_token {
+    next_token
+  }
+
+  fn mut peek -> Option[ref Kind] {
+    match @peeked {
+      case Some(Some({ @kind = kind })) -> Option.Some(kind)
+      case Some(None) -> Option.None
+      case _ -> match @lexer.next {
+        case Some(val) -> {
+          let ret = val.kind
+
+          @peeked = Option.Some(Option.Some(val))
+          Option.Some(ret)
+        }
+        case _ -> {
+          @peeked = Option.None
+          Option.None
+        }
+      }
+    }
+  }
+
+  fn pub move parse -> Result[Document, Error] {
+    let nodes = try block(Block.Default)
+
+    Result.Ok(Document {
+      @children = nodes,
+      @references = @references,
+      @footnotes = @footnotes,
+    })
+  }
+
+  fn mut block(mode: ref Block) -> Result[Array[Node], Error] {
+    let nodes = []
+
+    loop {
+      match peek {
+        case Some(Grave(n)) if n >= 3 -> nodes.push(try code_block)
+        case Some(Hash(n)) -> nodes.push(try heading)
+        case Some(EmptyLine) -> skip_token
+        case Some(UnorderedList(n)) -> nodes.push(try unordered_list(indent: n))
+        case Some(OrderedList(n)) -> nodes.push(try ordered_list(indent: n))
+        case Some(Quote(open)) -> match mode {
+          case Quote(close) if open == close -> break
+          case _ -> nodes.push(try block_quote(open))
+        }
+        case Some(Block(open)) -> match mode {
+          case Custom(close) if open == close -> break
+          case _ -> nodes.push(try custom_block(open))
+        }
+        case Some(ReferenceOpen) -> try reference
+        case Some(ThematicBreak) -> {
+          skip_token
+          nodes.push(Node.ThematicBreak)
+        }
+        case Some(TableRow) -> nodes.push(try table_without_header)
+        case Some(TableHeader) -> nodes.push(try table_with_header)
+        case Some(TableColumn or TableFooter) -> throw Error {
+          @message = "Tables must start with a header or a single row",
+          @offset = next_token.unwrap.offset,
+        }
+        case Some(_) -> try paragraph(nodes)
+        case _ -> break
+      }
+    }
+
+    Result.Ok(nodes)
+  }
+
+  fn mut unordered_list(indent: Int) -> Result[Node, Error] {
+    let items = []
+
+    loop {
+      match peek {
+        case Some(UnorderedList(spaces)) if spaces == indent -> {
+          skip_token
+
+          let nodes = try inline(Inline.List)
+
+          match peek {
+            case Some(UnorderedList(spaces)) if spaces > indent -> nodes.push(
+              try unordered_list(spaces)
+            )
+            case Some(OrderedList(spaces)) if spaces > indent -> nodes.push(
+              try ordered_list(spaces)
+            )
+            case _ -> {}
+          }
+
+          items.push(Node.ListItem(nodes))
+        }
+        case _ -> break
+      }
+    }
+
+    Result.Ok(Node.UnorderedList(items))
+  }
+
+  fn mut ordered_list(indent: Int) -> Result[Node, Error] {
+    let items = []
+
+    loop {
+      match peek {
+        case Some(OrderedList(spaces)) if spaces == indent -> {
+          skip_token
+
+          let nodes = try inline(Inline.List)
+
+          match peek {
+            case Some(OrderedList(spaces)) if spaces > indent -> nodes.push(
+              try ordered_list(spaces)
+            )
+            case Some(UnorderedList(spaces)) if spaces > indent -> nodes.push(
+              try unordered_list(spaces)
+            )
+            case _ -> {}
+          }
+
+          items.push(Node.ListItem(nodes))
+        }
+        case _ -> break
+      }
+    }
+
+    Result.Ok(Node.OrderedList(items))
+  }
+
+  fn mut paragraph(nodes: mut Array[Node]) -> Result[Nil, Error] {
+    let inlines = try inline(Inline.Default)
+
+    # Not producing trailing newlines is a bit tricky in the inline() method, as
+    # we'd have to look for many potential tokens to skip producing a newline,
+    # so instead we just remove trailing newlines here.
+    #
+    # This isn't strictly necessary, but it makes the output a bet more
+    # predictable and easier to test against.
+    match inlines.last {
+      case Some(Text("\n")) -> {
+        inlines.pop
+        nil
+      }
+      case _ -> {}
+    }
+
+    if inlines.empty? { return Result.Ok(nil) }
+
+    nodes.push(Node.Paragraph(inlines))
+    Result.Ok(nil)
+  }
+
+  fn mut block_quote(open: Int) -> Result[Node, Error] {
+    skip_token
+
+    let nodes = try block(Block.Quote(open))
+
+    try expect(Kind.Quote(open))
+    Result.Ok(Node.Quote(nodes))
+  }
+
+  fn mut custom_block(open: Int) -> Result[Node, Error] {
+    skip_token
+
+    let mut tag = ''
+
+    match peek {
+      case Some(Text) -> tag = text_line
+      case Some(SoftBreak) -> skip_token
+      case _ -> {}
+    }
+
+    let nodes = try block(Block.Custom(open))
+
+    try expect(Kind.Block(open))
+
+    match peek {
+      case Some(SoftBreak) -> skip_token
+      case _ -> {}
+    }
+
+    Result.Ok(Node.Block(tag, nodes))
+  }
+
+  fn mut inline(mode: ref Inline) -> Result[Array[Node], Error] {
+    let nodes = []
+
+    loop {
+      match peek {
+        case Some(BracketClose) -> match mode {
+          case Link -> break
+          case _ -> nodes.push(Node.Text(token_value(next_token.unwrap)))
+        }
+        case Some(SoftBreak) -> {
+          skip_token
+
+          match peek {
+            case Some(Quote(_) or Block(_)) -> break
+            case _ -> match ref mode {
+              case List or Footnote or Cell -> match peek {
+                case Some(Indent) -> {
+                  skip_token
+                  nodes.push(Node.Text("\n"))
+                }
+                case _ -> break
+              }
+              case _ -> nodes.push(Node.Text("\n"))
+            }
+          }
+        }
+        case Some(
+          Colon
+            or Greater
+            or ParenClose
+            or ParenOpen
+            or Text
+        ) -> nodes.push(Node.Text(token_value(next_token.unwrap)))
+        case Some(Indent) -> skip_token
+        case Some(Strong) -> match ref mode {
+          case Strong -> break
+          case _ -> nodes.push(try strong)
+        }
+        case Some(Underscore) -> match ref mode {
+          case Emphasis -> break
+          case _ -> nodes.push(try emphasis)
+        }
+        case Some(Caret) -> match ref mode {
+          case Superscript -> break
+          case _ -> nodes.push(try superscript)
+        }
+        case Some(Tilde) -> match ref mode {
+          case Subscript -> break
+          case _ -> nodes.push(try subscript)
+        }
+        case Some(Grave(1 or 2)) -> nodes.push(try code_block)
+        case Some(Less) -> nodes.push(try auto_link)
+        case Some(BracketOpen) -> match try link {
+          case Some(node) -> nodes.push(node)
+          case _ -> {}
+        }
+        case Some(ImageOpen) -> nodes.push(try image)
+        case Some(FootnoteOpen) -> match ref mode {
+          case Footnote -> break
+          case _ -> try footnote(nodes)
+        }
+        case _ -> break
+      }
+    }
+
+    Result.Ok(nodes)
+  }
+
+  fn mut strong -> Result[Node, Error] {
+    skip_token
+
+    let node = Node.Strong(try inline(Inline.Strong))
+
+    try expect(Kind.Strong)
+    Result.Ok(node)
+  }
+
+  fn mut emphasis -> Result[Node, Error] {
+    skip_token
+
+    let node = Node.Emphasis(try inline(Inline.Emphasis))
+
+    try expect(Kind.Underscore)
+    Result.Ok(node)
+  }
+
+  fn mut superscript -> Result[Node, Error] {
+    skip_token
+
+    let node = Node.Superscript(try inline(Inline.Superscript))
+
+    try expect(Kind.Caret)
+    Result.Ok(node)
+  }
+
+  fn mut subscript -> Result[Node, Error] {
+    skip_token
+
+    let node = Node.Subscript(try inline(Inline.Subscript))
+
+    try expect(Kind.Tilde)
+    Result.Ok(node)
+  }
+
+  fn mut auto_link -> Result[Node, Error] {
+    skip_token
+    Result.Ok(Node.Link(Link.Direct(try text_until(Kind.Greater)), []))
+  }
+
+  fn mut link -> Result[Option[Node], Error] {
+    let start_token = next_token.unwrap
+    let children = try inline(Inline.Link)
+
+    try expect(Kind.BracketClose)
+
+    let link = match peek {
+      case Some(BracketOpen) -> {
+        skip_token
+        Link.Reference(try text_until(Kind.BracketClose))
+      }
+      case _ -> {
+        try expect(Kind.ParenOpen)
+        Link.Direct(try text_until(Kind.ParenClose))
+      }
+    }
+
+    Result.Ok(Option.Some(Node.Link(link, children)))
+  }
+
+  fn mut reference -> Result[Nil, Error] {
+    skip_token
+
+    let name = try text_until(Kind.BracketClose)
+
+    try expect(Kind.Colon)
+
+    let url = text_line
+
+    @references.set(name, url)
+    Result.Ok(nil)
+  }
+
+  fn mut image -> Result[Node, Error] {
+    skip_token
+
+    let title = try text_until(Kind.BracketClose)
+    let link = match peek {
+      case Some(BracketOpen) -> {
+        skip_token
+        Link.Reference(try text_until(Kind.BracketClose))
+      }
+      case _ -> {
+        try expect(Kind.ParenOpen)
+        Link.Direct(try text_until(Kind.ParenClose))
+      }
+    }
+
+    Result.Ok(Node.Image(link, title))
+  }
+
+  fn mut footnote(nodes: mut Array[Node]) -> Result[Nil, Error] {
+    skip_token
+
+    let name = try text_until(Kind.BracketClose)
+
+    match peek {
+      case Some(Colon) -> {
+        skip_token
+
+        let val = try inline(Inline.Footnote)
+
+        @footnotes.set(name, val)
+      }
+      case _ -> nodes.push(Node.Footnote(name))
+    }
+
+    Result.Ok(nil)
+  }
+
+  fn mut text_line -> String {
+    let mut buffer = ByteArray.new
+
+    loop {
+      match next_token {
+        case Some({ @kind = SoftBreak or EmptyLine }) -> break
+        case Some({ @offset = offset, @size = size }) -> {
+          buffer.append(@lexer.input.slice(offset, size))
+        }
+        case _ -> break
+      }
+    }
+
+    buffer.into_string
+  }
+
+  fn mut text_until(closing: ref Kind) -> Result[String, Error] {
+    let mut buffer = ByteArray.new
+
+    loop {
+      match next_token {
+        case Some({ @kind = kind }) if kind == closing -> break
+        case Some({ @offset = offset, @size = size }) -> {
+          buffer.append(@lexer.input.slice(offset, size))
+        }
+        case _ -> throw Error {
+          @message = "Expected {closing.description}, \
+            but no more input remains",
+          @offset = @lexer.offset,
+        }
+      }
+    }
+
+    Result.Ok(buffer.into_string)
+  }
+
+  fn mut code_block -> Result[Node, Error] {
+    let open = match next_token {
+      case Some({ @kind = Grave(n) }) -> n
+      case _ -> panic('unreachable')
+    }
+
+    let mut info = Option.None
+    let block = open >= 3
+
+    if block {
+      match peek {
+        case Some(Text) -> info = Option.Some(text_line)
+        case Some(SoftBreak) -> skip_token
+        case _ -> {}
+      }
+    }
+
+    let mut start = @lexer.offset
+    let mut size = 0
+
+    loop {
+      match peek {
+        case Some(Grave(close)) -> {
+          skip_token
+
+          if open != close {
+            size += close
+          } else if block {
+            return Result.Ok(Node.CodeBlock(info, slice(start, size)))
+          } else {
+            return Result.Ok(Node.CodeSpan(slice(start, size)))
+          }
+        }
+        case Some(_) -> size += next_token.unwrap.size
+        case _ -> try expect(Kind.Grave(open))
+      }
+    }
+  }
+
+  fn mut heading -> Result[Node, Error] {
+    let level = match next_token {
+      case Some({ @kind = Hash(n) }) -> n
+      case _ -> panic('unreachable')
+    }
+
+    let children = try inline(Inline.Default)
+
+    Result.Ok(Node.Heading(level, children))
+  }
+
+  fn mut table_without_header -> Result[Node, Error] {
+    let body = try table_body
+    let footer = try table_footer
+
+    Result.Ok(Node.Table([], body, footer))
+  }
+
+  fn mut table_with_header -> Result[Node, Error] {
+    let header = try table_header
+    let body = try table_body
+    let footer = try table_footer
+
+    Result.Ok(Node.Table(header, body, footer))
+  }
+
+  fn mut table_header -> Result[Array[Array[Array[Node]]], Error] {
+    let rows = []
+
+    loop {
+      match peek {
+        case Some(TableHeader) -> skip_token
+        case _ -> break
+      }
+
+      rows.push(try table_row)
+    }
+
+    Result.Ok(rows)
+  }
+
+  fn mut table_body -> Result[Array[Array[Array[Node]]], Error] {
+    let rows = []
+
+    loop {
+      match peek {
+        case Some(TableRow) -> skip_token
+        case _ -> break
+      }
+
+      rows.push(try table_row)
+    }
+
+    Result.Ok(rows)
+  }
+
+  fn mut table_row -> Result[Array[Array[Node]], Error] {
+    let cols = []
+
+    loop {
+      match peek {
+        case Some(TableColumn) -> skip_token
+        case _ -> break
+      }
+
+      cols.push(try inline(Inline.Cell))
+    }
+
+    Result.Ok(cols)
+  }
+
+  fn mut table_footer -> Result[Array[Array[Array[Node]]], Error] {
+    let rows = []
+
+    loop {
+      match peek {
+        case Some(TableFooter) -> skip_token
+        case _ -> break
+      }
+
+      rows.push(try table_row)
+    }
+
+    Result.Ok(rows)
+  }
+
+  fn mut expect(kind: ref Kind) -> Result[Token, Error] {
+    expect_kind(kind, next_token)
+  }
+
+  fn mut expect_kind(
+    kind: ref Kind,
+    token: Option[Token],
+  ) -> Result[Token, Error] {
+    match token {
+      case Some(tok) if tok.kind == kind -> Result.Ok(tok)
+      case Some(tok) -> throw Error {
+        @message = "Expected {kind.description}, \
+          but {tok.kind.description} was found instead",
+        @offset = tok.offset,
+      }
+      case _ -> throw Error {
+        @message = "Expected {kind.description}, but no more input remains",
+        @offset = @lexer.offset,
+      }
+    }
+  }
+
+  fn slice(start: Int, size: Int) -> String {
+    @lexer.input.slice(start, size).into_string
+  }
+
+  fn token_value(token: ref Token) -> String {
+    slice(token.offset, token.size)
+  }
+}

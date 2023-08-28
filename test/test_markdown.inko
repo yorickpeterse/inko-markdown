@@ -1,0 +1,5 @@
+import std.test.Tests
+
+fn pub tests(t: mut Tests) {
+
+}
