@@ -11,4 +11,5 @@ jobs:
       - run: microdnf install --quiet --assumeyes tar git
       - uses: actions/checkout@v3
       - run: inko --version
+      - run: inko pkg sync
       - run: inko test
