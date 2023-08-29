@@ -147,6 +147,9 @@ class pub enum Node {
     Array[Array[Array[Node]]],
     Array[Array[Array[Node]]],
   )
+
+  # A hard line break.
+  case LineBreak
 }
 
 impl Equal[Node] for Node {
@@ -173,6 +176,7 @@ impl Equal[Node] for Node {
       case (Table(a1, a2, a3), Table(b1, b2, b3)) -> {
         a1 == b1 and a2 == b2 and a3 == b3
       }
+      case (LineBreak, LineBreak) -> true
       case _ -> false
     }
   }
@@ -214,6 +218,7 @@ impl Format for Node {
       case Table(head, body, foot) -> {
         formatter.tuple('Table').field(head).field(body).field(foot).finish
       }
+      case LineBreak -> formatter.tuple('LineBreak').finish
     }
   }
 }
@@ -468,6 +473,10 @@ class pub Parser {
               case _ -> nodes.push(Node.Text("\n"))
             }
           }
+        }
+        case Some(LineBreak) -> {
+          skip_token
+          nodes.push(Node.LineBreak)
         }
         case Some(
           Colon

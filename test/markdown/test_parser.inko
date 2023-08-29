@@ -114,6 +114,10 @@ fn tr(columns: Array[Array[Node]]) -> Array[Array[Node]] {
   columns
 }
 
+fn br -> Node {
+  Node.LineBreak
+}
+
 fn pub tests(t: mut Tests) {
   t.test('Regular text') fn (t) {
     t.equal(parse('a'), Result.Ok([p([text('a')])]))
@@ -510,6 +514,10 @@ c
 
   t.test('Thematic breaks') fn (t) {
     t.equal(parse('---'), Result.Ok([hr]))
+  }
+
+  t.test('Hard line breaks') fn (t) {
+    t.equal(parse("a\\\nb"), Result.Ok([p([text('a'), br, text('b')])]))
   }
 
   t.test('Superscripts and subscripts') fn (t) {

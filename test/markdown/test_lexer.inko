@@ -225,6 +225,10 @@ fn pub tests(t: mut Tests) {
     )
   }
 
+  t.test('Hard line breaks') fn (t) {
+    t.equal(lex("\\\n"), [tok(Kind.LineBreak, 0, 2)])
+  }
+
   t.test('Superscript and subscripts') fn (t) {
     t.equal(lex('a^'), [tok(Kind.Text, 0, 1), tok(Kind.Caret, 1, 1)])
     t.equal(lex('a~'), [tok(Kind.Text, 0, 1), tok(Kind.Tilde, 1, 1)])

@@ -117,6 +117,7 @@ class pub Html {
         visit(nodes, el)
       }
       case ThematicBreak -> parent.hr
+      case LineBreak -> parent.br
       case Table(head, body, foot) -> parent.table.then fn (table) {
         if head.size > 0 {
           table.thead.then fn (thead) {

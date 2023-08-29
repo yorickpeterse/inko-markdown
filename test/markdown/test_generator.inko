@@ -105,6 +105,10 @@ fn pub tests(t: mut Tests) {
     t.equal(gen('---'), '<hr />')
   }
 
+  t.test('Hard line breaks') fn (t) {
+    t.equal(gen("a\\\nb"), '<p>a<br />b</p>')
+  }
+
   t.test('Tables') fn (t) {
     t.equal(
       gen(

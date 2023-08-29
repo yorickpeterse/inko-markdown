@@ -58,6 +58,7 @@ class enum Kind {
   case TableHeader
   case TableRow
   case TableFooter
+  case LineBreak
 
   fn description -> String {
     match self {
@@ -92,6 +93,7 @@ class enum Kind {
       case TableHeader -> 'a pipe followed by a hash ("|#")'
       case TableRow -> 'a pipe followed by a hyphen ("|-")'
       case TableFooter -> 'a pipe followed by a plus sign ("|+")'
+      case LineBreak -> 'a hard line break'
     }
   }
 }
@@ -128,6 +130,7 @@ impl Equal[Kind] for Kind {
       case (TableHeader, TableHeader) -> true
       case (TableFooter, TableFooter) -> true
       case (TableRow, TableRow) -> true
+      case (LineBreak, LineBreak) -> true
       case _ -> false
     }
   }
@@ -169,6 +172,7 @@ impl Format for Kind {
       case TableHeader -> formatter.tuple('TableHeader').finish
       case TableRow -> formatter.tuple('TableRow').finish
       case TableFooter -> formatter.tuple('TableFooter').finish
+      case LineBreak -> formatter.tuple('LineBreak').finish
     }
   }
 }
@@ -536,11 +540,16 @@ impl Iter[Token] for Lexer {
               or RPAR
               or TILDE
               or UNDERSCORE
-          ) -> { advance(1) }
-          case _ -> {}
+          ) -> {
+            advance(1)
+            token(Kind.Text, @offset - 1)
+          }
+          case Some(LF) -> {
+            advance_line
+            token(Kind.LineBreak, start)
+          }
+          case _ -> token(Kind.Text, start)
         }
-
-        token(Kind.Text, @offset - 1)
       }
       case Some(_) -> text(start)
       case _ -> return Option.None
