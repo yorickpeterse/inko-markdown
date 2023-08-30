@@ -1,5 +1,6 @@
 import markdown.generator.Html
-import markdown.parser.(Node, Parser)
+import markdown.parser.Node
+import markdown.parser.Parser
 import std.test.Tests
 
 fn gen(input: String) -> String {

@@ -1,1 +1,244 @@
 # An opinionated subset of Markdown.
+import builder.html
+import markdown.generator.Html
+import markdown.parser.(Error, Parser)
+import std.cmp.Equal
+import std.fmt.(Format, Formatter)
+import std.string.Bytes
+
+# A parsed document.
+class pub Document {
+  # The markup nodes in this document.
+  let pub @children: Array[Node]
+
+  # The link references defined in this document.
+  #
+  # The keys are the names of the references, and the values the links they
+  # point to.
+  let pub @references: Map[String, String]
+
+  # The footnotes defined in this document.
+  #
+  # The keys of this map are the footnote names. The value are the nodes acting
+  # as the footnote's text/body.
+  let pub @footnotes: Map[String, Array[Node]]
+
+  # Parses markup into a document.
+  #
+  # # Examples
+  #
+  #     import markdown.Document
+  #
+  #     Document.parse('*hello*')
+  fn pub static parse(input: ref Bytes) -> Result[Document, Error] {
+    Parser.new(input).parse
+  }
+
+  # Generates an HTML document from `self`.
+  #
+  # If you need more control over how the document is generated (e.g. by
+  # disabling footnotes), you should use `markdown.generator.Html` directly.
+  #
+  # # Examples
+  #
+  #     import markdown.Document
+  #
+  #     Document
+  #       .parse('*hello*')
+  #       .expect('the markup must be valid')
+  #       .to_html
+  #       .to_string # => '<p><strong>hello</strong></p>'
+  fn pub to_html -> html.Document {
+    Html.new(self).generate
+  }
+}
+
+# A type describing the kind of link something is.
+class pub enum Link {
+  # A direct link, such as `[text](link here)`.
+  case Direct(String)
+
+  # A reference link, such as `[text][reference-name]`
+  case Reference(String)
+}
+
+impl Equal[Link] for Link {
+  fn pub ==(other: ref Link) -> Bool {
+    match (self, other) {
+      case (Direct(a), Direct(b)) -> a == b
+      case (Reference(a), Reference(b)) -> a == b
+      case _ -> false
+    }
+  }
+}
+
+impl Format for Link {
+  fn pub fmt(formatter: mut Formatter) {
+    match self {
+      case Direct(val) -> formatter.tuple('Direct').field(val).finish
+      case Reference(val) -> formatter.tuple('Reference').field(val).finish
+    }
+  }
+}
+
+# A node in a Markdown AST.
+class pub enum Node {
+  # A custom block/div/container.
+  #
+  # The `String` argument is the tag/class of the block.
+  case Block(String, Array[Node])
+
+  # A custom span with a tag.
+  #
+  # The `String` argument is the tag/class of the span.
+  case Span(String, Array[Node])
+
+  # A block quote.
+  case Quote(Array[Node])
+
+  # A regular emphasis node.
+  case Emphasis(Array[Node])
+
+  # A paragraph node.
+  case Paragraph(Array[Node])
+
+  # A strong emphasis node.
+  case Strong(Array[Node])
+
+  # An inline code span.
+  case CodeSpan(String)
+
+  # A code block with an optional info string.
+  case CodeBlock(Option[String], String)
+
+  # Regular text.
+  #
+  # The `String` argument is the text value.
+  case Text(String)
+
+  # A link with an optional body.
+  case Link(Link, Array[Node])
+
+  # An image.
+  #
+  # The second argument is the image text.
+  case Image(Link, String)
+
+  # A heading.
+  #
+  # The first argument is the heading level, in a range from 1 to 6. The second
+  # argument is the list of child nodes.
+  case Heading(Int, Array[Node])
+
+  # A footnote.
+  #
+  # The first argument is the name of the footnote.
+  case Footnote(String)
+
+  # An unordered list.
+  case UnorderedList(Array[Node])
+
+  # An ordered list.
+  case OrderedList(Array[Node])
+
+  # A single list item.
+  case ListItem(Array[Node])
+
+  # A thematic break/horizontal ruler.
+  case ThematicBreak
+
+  # A superscript node.
+  case Superscript(Array[Node])
+
+  # A subscript node.
+  case Subscript(Array[Node])
+
+  # A table.
+  #
+  # The arguments are (in this order): the header rows, the body rows, and the
+  # footer rows. Each value is an array of rows, containing an array of columns,
+  # containing an array of markup nodes.
+  case Table(
+    Array[Array[Array[Node]]],
+    Array[Array[Array[Node]]],
+    Array[Array[Array[Node]]],
+  )
+
+  # A hard line break.
+  case LineBreak
+}
+
+impl Equal[Node] for Node {
+  fn pub ==(other: ref Node) -> Bool {
+    match (self, other) {
+      case (Block(a1, a2), Block(b1, b2)) -> a1 == b1 and a2 == b2
+      case (Span(a1, a2), Span(b1, b2)) -> a1 == b1 and a2 == b2
+      case (Quote(a), Quote(b)) -> a == b
+      case (Emphasis(a), Emphasis(b)) -> a == b
+      case (Paragraph(a), Paragraph(b)) -> a == b
+      case (Strong(a), Strong(b)) -> a == b
+      case (CodeSpan(a), CodeSpan(b)) -> a == b
+      case (CodeBlock(a1, a2), CodeBlock(b1, b2)) -> a1 == b1 and a2 == b2
+      case (Text(a), Text(b)) -> a == b
+      case (Link(a1, a2), Link(b1, b2)) -> a1 == b1 and a2 == b2
+      case (Image(a1, a2), Image(b1, b2)) -> a1 == b1 and a2 == b2
+      case (Heading(a1, a2), Heading(b1, b2)) -> a1 == b1 and a2 == b2
+      case (Footnote(a), Footnote(b)) -> a == b
+      case (UnorderedList(a), UnorderedList(b)) -> a == b
+      case (OrderedList(a), OrderedList(b)) -> a == b
+      case (ListItem(a), ListItem(b)) -> a == b
+      case (ThematicBreak, ThematicBreak) -> true
+      case (Superscript(a), Superscript(b)) -> a == b
+      case (Subscript(a), Subscript(b)) -> a == b
+      case (Table(a1, a2, a3), Table(b1, b2, b3)) -> {
+        a1 == b1 and a2 == b2 and a3 == b3
+      }
+      case (LineBreak, LineBreak) -> true
+      case _ -> false
+    }
+  }
+}
+
+impl Format for Node {
+  fn pub fmt(formatter: mut Formatter) {
+    match self {
+      case Block(tag, nodes) -> {
+        formatter.tuple('Block').field(tag).field(nodes).finish
+      }
+      case Span(tag, nodes) -> {
+        formatter.tuple('Span').field(tag).field(nodes).finish
+      }
+      case Quote(nodes) -> {
+        formatter.tuple('Quote').field(nodes).finish
+      }
+      case Emphasis(nodes) -> formatter.tuple('Emphasis').field(nodes).finish
+      case Paragraph(nodes) -> formatter.tuple('Paragraph').field(nodes).finish
+      case Strong(nodes) -> formatter.tuple('Strong').field(nodes).finish
+      case CodeSpan(nodes) -> formatter.tuple('CodeSpan').field(nodes).finish
+      case CodeBlock(info, nodes) -> {
+        formatter.tuple('CodeBlock').field(info).field(nodes).finish
+      }
+      case Text(v) -> formatter.tuple('Text').field(v).finish
+      case Link(url, nodes) -> {
+        formatter.tuple('Link').field(url).field(nodes).finish
+      }
+      case Image(url, text) -> {
+        formatter.tuple('Image').field(url).field(text).finish
+      }
+      case Heading(level, nodes) -> {
+        formatter.tuple('Heading').field(level).field(nodes).finish
+      }
+      case Footnote(name) -> formatter.tuple('Footnote').field(name).finish
+      case UnorderedList(n) -> formatter.tuple('UnorderedList').field(n).finish
+      case OrderedList(n) -> formatter.tuple('OrderedList').field(n).finish
+      case ListItem(nodes) -> formatter.tuple('ListItem').field(nodes).finish
+      case ThematicBreak -> formatter.tuple('ThematicBreak').finish
+      case Superscript(n) -> formatter.tuple('Superscript').field(n).finish
+      case Subscript(n) -> formatter.tuple('Subscript').field(n).finish
+      case Table(head, body, foot) -> {
+        formatter.tuple('Table').field(head).field(body).field(foot).finish
+      }
+      case LineBreak -> formatter.tuple('LineBreak').finish
+    }
+  }
+}

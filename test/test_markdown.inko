@@ -1,5 +1,12 @@
+import markdown.Document
 import std.test.Tests
 
 fn pub tests(t: mut Tests) {
+  t.test('Document.parse') fn (t) {
+    t.true(Document.parse('foo').ok?)
+  }
 
+  t.test('Document.to_html') fn (t) {
+    t.equal(Document.parse('foo').unwrap.to_html.to_string, '<p>foo</p>')
+  }
 }

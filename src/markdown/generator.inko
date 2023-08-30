@@ -1,6 +1,6 @@
 # Generating of HTML and other formats.
 import builder.html
-import markdown.parser.(Document, Node)
+import markdown.(Document, Node)
 
 # Generates an HTML document from a markup document.
 #
