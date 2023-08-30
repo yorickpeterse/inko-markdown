@@ -116,6 +116,11 @@ class pub Html {
 
         visit(nodes, el)
       }
+      case Span(tag, nodes) -> parent.span.then fn (el) {
+        if tag.size > 0 { el.attr('class', tag) }
+
+        visit(nodes, el)
+      }
       case ThematicBreak -> parent.hr
       case LineBreak -> parent.br
       case Table(head, body, foot) -> parent.table.then fn (table) {

@@ -77,6 +77,11 @@ class pub enum Node {
   # The `String` argument is the tag/class of the block.
   case Block(String, Array[Node])
 
+  # A custom span with a tag.
+  #
+  # The `String` argument is the tag/class of the span.
+  case Span(String, Array[Node])
+
   # A block quote.
   case Quote(Array[Node])
 
@@ -156,6 +161,7 @@ impl Equal[Node] for Node {
   fn pub ==(other: ref Node) -> Bool {
     match (self, other) {
       case (Block(a1, a2), Block(b1, b2)) -> a1 == b1 and a2 == b2
+      case (Span(a1, a2), Span(b1, b2)) -> a1 == b1 and a2 == b2
       case (Quote(a), Quote(b)) -> a == b
       case (Emphasis(a), Emphasis(b)) -> a == b
       case (Paragraph(a), Paragraph(b)) -> a == b
@@ -187,6 +193,9 @@ impl Format for Node {
     match self {
       case Block(tag, nodes) -> {
         formatter.tuple('Block').field(tag).field(nodes).finish
+      }
+      case Span(tag, nodes) -> {
+        formatter.tuple('Span').field(tag).field(nodes).finish
       }
       case Quote(nodes) -> {
         formatter.tuple('Quote').field(nodes).finish
@@ -224,15 +233,15 @@ impl Format for Node {
 }
 
 class enum Inline {
+  case Brackets
+  case Cell
   case Default
   case Emphasis
-  case Strong
-  case Link
   case Footnote
   case List
-  case Superscript
+  case Strong
   case Subscript
-  case Cell
+  case Superscript
 }
 
 class enum Block {
@@ -454,8 +463,11 @@ class pub Parser {
     loop {
       match peek {
         case Some(BracketClose) -> match mode {
-          case Link -> break
+          case Brackets -> break
           case _ -> nodes.push(Node.Text(token_value(next_token.unwrap)))
+        }
+        case Some(CurlyOpen or CurlyClose) -> {
+          nodes.push(Node.Text(token_value(next_token.unwrap)))
         }
         case Some(SoftBreak) -> {
           skip_token
@@ -504,10 +516,7 @@ class pub Parser {
         }
         case Some(Grave(1 or 2)) -> nodes.push(try code_block)
         case Some(Less) -> nodes.push(try auto_link)
-        case Some(BracketOpen) -> match try link {
-          case Some(node) -> nodes.push(node)
-          case _ -> {}
-        }
+        case Some(BracketOpen) -> nodes.push(try brackets)
         case Some(ImageOpen) -> nodes.push(try image)
         case Some(FootnoteOpen) -> match ref mode {
           case Footnote -> break
@@ -561,24 +570,28 @@ class pub Parser {
     Result.Ok(Node.Link(Link.Direct(try text_until(Kind.Greater)), []))
   }
 
-  fn mut link -> Result[Option[Node], Error] {
+  fn mut brackets -> Result[Node, Error] {
     let start_token = next_token.unwrap
-    let children = try inline(Inline.Link)
+    let children = try inline(Inline.Brackets)
 
     try expect(Kind.BracketClose)
 
-    let link = match peek {
+    let node = match peek {
       case Some(BracketOpen) -> {
         skip_token
-        Link.Reference(try text_until(Kind.BracketClose))
+        Node.Link(Link.Reference(try text_until(Kind.BracketClose)), children)
+      }
+      case Some(CurlyOpen) -> {
+        skip_token
+        Node.Span(try text_until(Kind.CurlyClose), children)
       }
       case _ -> {
         try expect(Kind.ParenOpen)
-        Link.Direct(try text_until(Kind.ParenClose))
+        Node.Link(Link.Direct(try text_until(Kind.ParenClose)), children)
       }
     }
 
-    Result.Ok(Option.Some(Node.Link(link, children)))
+    Result.Ok(node)
   }
 
   fn mut reference -> Result[Nil, Error] {

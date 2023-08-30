@@ -88,6 +88,13 @@ fn pub tests(t: mut Tests) {
     t.equal(lex('[#'), [tok(Kind.ReferenceOpen, 0, 2)])
   }
 
+  t.test('Curly braces') fn (t) {
+    t.equal(lex('{abc'), [tok(Kind.CurlyOpen, 0, 1), tok(Kind.Text, 1, 3)])
+    t.equal(lex('abc{'), [tok(Kind.Text, 0, 3), tok(Kind.CurlyOpen, 3, 1)])
+    t.equal(lex('}abc'), [tok(Kind.CurlyClose, 0, 1), tok(Kind.Text, 1, 3)])
+    t.equal(lex('abc}'), [tok(Kind.Text, 0, 3), tok(Kind.CurlyClose, 3, 1)])
+  }
+
   t.test('Colons') fn (t) {
     t.equal(lex('a:'), [tok(Kind.Text, 0, 1), tok(Kind.Colon, 1, 1)])
     t.equal(lex('a: '), [tok(Kind.Text, 0, 1), tok(Kind.Colon, 1, 1)])
@@ -116,6 +123,8 @@ fn pub tests(t: mut Tests) {
     t.equal(lex('\\^'), [tok(Kind.Text, 1, 1)])
     t.equal(lex('\\~'), [tok(Kind.Text, 1, 1)])
     t.equal(lex('\\|'), [tok(Kind.Text, 1, 1)])
+    t.equal(lex('\\{'), [tok(Kind.Text, 1, 1)])
+    t.equal(lex('\\}'), [tok(Kind.Text, 1, 1)])
   }
 
   t.test('Empty lines and soft breaks') fn (t) {

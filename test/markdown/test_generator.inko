@@ -101,6 +101,11 @@ fn pub tests(t: mut Tests) {
     t.equal(gen("=== abc\nfoo\n==="), '<div class="abc"><p>foo</p></div>')
   }
 
+  t.test('Custom spans') fn (t) {
+    t.equal(gen('[foo]{}'), '<p><span>foo</span></p>')
+    t.equal(gen('[foo]{abc}'), '<p><span class="abc">foo</span></p>')
+  }
+
   t.test('Thematic breaks') fn (t) {
     t.equal(gen('---'), '<hr />')
   }

@@ -25,13 +25,17 @@ let RBRACK = 93
 let CARET = 94
 let UNDERSCORE = 95
 let GRAVE = 96
+let LCURLY = 123
 let PIPE = 124
+let RCURLY = 125
 let TILDE = 126
 
 class enum Kind {
   case Block(Int)
   case BracketClose
   case BracketOpen
+  case CurlyOpen
+  case CurlyClose
   case Caret
   case Colon
   case EmptyLine
@@ -66,6 +70,8 @@ class enum Kind {
       case Strong -> 'a strong emphasis symbol ("*")'
       case BracketClose -> 'a closing bracket ("]")'
       case BracketOpen -> 'an opening bracket ("[")'
+      case CurlyOpen -> 'an opening curly bracket ("{")'
+      case CurlyClose -> 'a closing curly bracket ("}")'
       case Colon -> 'a colon (":")'
       case EmptyLine -> 'an empty line'
       case Grave(1) -> 'a grave accent ("`")'
@@ -105,6 +111,8 @@ impl Equal[Kind] for Kind {
       case (Strong, Strong) -> true
       case (BracketClose, BracketClose) -> true
       case (BracketOpen, BracketOpen) -> true
+      case (CurlyOpen, CurlyOpen) -> true
+      case (CurlyClose, CurlyClose) -> true
       case (Colon, Colon) -> true
       case (EmptyLine, EmptyLine) -> true
       case (Grave(a), Grave(b)) -> a == b
@@ -144,6 +152,8 @@ impl Format for Kind {
       case Grave(n) -> formatter.tuple('Grave').field(n).finish
       case BracketClose -> formatter.tuple('BracketClose').finish
       case BracketOpen -> formatter.tuple('BracketOpen').finish
+      case CurlyOpen -> formatter.tuple('CurlyOpen').finish
+      case CurlyClose -> formatter.tuple('CurlyClose').finish
       case Colon -> formatter.tuple('Colon').finish
       case EmptyLine -> formatter.tuple('EmptyLine').finish
       case UnorderedList(level) -> {
@@ -311,18 +321,20 @@ class Lexer {
         case Some(
           ASTERISK
             or BACKSLASH
+            or CARET
             or COLON
             or GRAVE
             or GT
             or LBRACK
+            or LCURLY
             or LF
             or LPAR
             or LT
             or RBRACK
+            or RCURLY
             or RPAR
-            or UNDERSCORE
-            or CARET
             or TILDE
+            or UNDERSCORE
         ) -> break
         case Some(EXCL) -> match peek {
           case Some(LBRACK) -> break
@@ -420,9 +432,11 @@ impl Iter[Token] for Lexer {
         case Some(HASH) -> double(Kind.ReferenceOpen)
         case _ -> single(Kind.BracketOpen)
       }
+      case Some(RBRACK) -> single(Kind.BracketClose)
+      case Some(LCURLY) -> single(Kind.CurlyOpen)
+      case Some(RCURLY) -> single(Kind.CurlyClose)
       case Some(CARET) -> single(Kind.Caret)
       case Some(TILDE) -> single(Kind.Tilde)
-      case Some(RBRACK) -> single(Kind.BracketClose)
       case Some(LPAR) -> single(Kind.ParenOpen)
       case Some(RPAR) -> single(Kind.ParenClose)
       case Some(LT) -> single(Kind.Less)
@@ -533,10 +547,12 @@ impl Iter[Token] for Lexer {
               or GT
               or HASH
               or LBRACK
+              or LCURLY
               or LPAR
               or LT
               or PIPE
               or RBRACK
+              or RCURLY
               or RPAR
               or TILDE
               or UNDERSCORE

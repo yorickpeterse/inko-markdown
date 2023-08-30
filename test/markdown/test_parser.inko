@@ -118,6 +118,10 @@ fn br -> Node {
   Node.LineBreak
 }
 
+fn span(tag: String, children: Array[Node]) -> Node {
+  Node.Span(tag, children)
+}
+
 fn pub tests(t: mut Tests) {
   t.test('Regular text') fn (t) {
     t.equal(parse('a'), Result.Ok([p([text('a')])]))
@@ -138,6 +142,9 @@ fn pub tests(t: mut Tests) {
       parse(' (a) '),
       Result.Ok([p([text('('), text('a'), text(')'), text(' ')])])
     )
+
+    t.equal(parse('{'), Result.Ok([p([text('{')])]))
+    t.equal(parse('}'), Result.Ok([p([text('}')])]))
   }
 
   t.test('Strong text') fn (t) {
@@ -630,5 +637,10 @@ c
 
     t.equal(parse('| a'), Result.Error(0))
     t.equal(parse('|+ a'), Result.Error(0))
+  }
+
+  t.test('Custom spans') fn (t) {
+    t.equal(parse('[text]{}'), Result.Ok([p([span('', [text('text')])])]))
+    t.equal(parse('[text]{tag}'), Result.Ok([p([span('tag', [text('text')])])]))
   }
 }
