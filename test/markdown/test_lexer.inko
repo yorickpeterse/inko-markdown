@@ -37,6 +37,7 @@ fn pub tests(t: mut Tests) {
     t.equal(lex('abc!['), [tok(Kind.Text, 0, 3), tok(Kind.ImageOpen, 3, 2)])
     t.equal(lex('  abc'), [tok(Kind.Indent, 0, 2), tok(Kind.Text, 2, 3)])
     t.equal(lex('a  b'), [tok(Kind.Text, 0, 4)])
+    t.equal(lex('*'), [tok(Kind.Text, 0, 1)])
   }
 
   t.test('Exclamation marks') fn (t) {
@@ -47,8 +48,8 @@ fn pub tests(t: mut Tests) {
   }
 
   t.test('Emphasized text') fn (t) {
-    t.equal(lex('*abc'), [tok(Kind.Strong, 0, 1), tok(Kind.Text, 1, 3)])
-    t.equal(lex('abc*'), [tok(Kind.Text, 0, 3), tok(Kind.Strong, 3, 1)])
+    t.equal(lex('**abc'), [tok(Kind.Strong, 0, 2), tok(Kind.Text, 2, 3)])
+    t.equal(lex('abc**'), [tok(Kind.Text, 0, 3), tok(Kind.Strong, 3, 2)])
 
     t.equal(lex('_abc'), [tok(Kind.Underscore, 0, 1), tok(Kind.Text, 1, 3)])
     t.equal(lex('abc_'), [tok(Kind.Text, 0, 3), tok(Kind.Underscore, 3, 1)])
@@ -63,11 +64,11 @@ fn pub tests(t: mut Tests) {
   }
 
   t.test('Ordered lists') fn (t) {
-    t.equal(lex('+a'), [tok(Kind.OrderedList(0), 0, 1), tok(Kind.Text, 1, 1)])
-    t.equal(lex('+ a'), [tok(Kind.OrderedList(0), 0, 1), tok(Kind.Text, 2, 1)])
-    t.equal(lex('  +'), [tok(Kind.OrderedList(2), 0, 3)])
-    t.equal(lex('a+'), [tok(Kind.Text, 0, 2)])
-    t.equal(lex('a+ '), [tok(Kind.Text, 0, 3)])
+    t.equal(lex('1.a'), [tok(Kind.OrderedList(0), 0, 2), tok(Kind.Text, 2, 1)])
+    t.equal(lex('1. a'), [tok(Kind.OrderedList(0), 0, 2), tok(Kind.Text, 3, 1)])
+    t.equal(lex('  1.'), [tok(Kind.OrderedList(2), 0, 4)])
+    t.equal(lex('a1.'), [tok(Kind.Text, 0, 3)])
+    t.equal(lex('a1. '), [tok(Kind.Text, 0, 4)])
   }
 
   t.test('Parentheses') fn (t) {
@@ -85,7 +86,18 @@ fn pub tests(t: mut Tests) {
     t.equal(lex('abc]'), [tok(Kind.Text, 0, 3), tok(Kind.BracketClose, 3, 1)])
     t.equal(lex('[^'), [tok(Kind.FootnoteOpen, 0, 2)])
     t.equal(lex('[^a'), [tok(Kind.FootnoteOpen, 0, 2), tok(Kind.Text, 2, 1)])
-    t.equal(lex('[#'), [tok(Kind.ReferenceOpen, 0, 2)])
+    t.equal(lex('[abc]:'), [tok(Kind.Reference, 1, 3)])
+    t.equal(lex('[abc]:  '), [tok(Kind.Reference, 1, 3)])
+    t.equal(
+      lex('[a**]:'),
+      [
+        tok(Kind.BracketOpen, 0, 1),
+        tok(Kind.Text, 1, 1),
+        tok(Kind.Strong, 2, 2),
+        tok(Kind.BracketClose, 4, 1),
+        tok(Kind.Colon, 5, 1),
+      ]
+    )
   }
 
   t.test('Curly braces') fn (t) {
@@ -96,14 +108,9 @@ fn pub tests(t: mut Tests) {
   }
 
   t.test('Colons') fn (t) {
-    t.equal(lex('a:'), [tok(Kind.Text, 0, 1), tok(Kind.Colon, 1, 1)])
-    t.equal(lex('a: '), [tok(Kind.Text, 0, 1), tok(Kind.Colon, 1, 1)])
-    t.equal(
-      lex("a:\na"),
-      [tok(Kind.Text, 0, 1), tok(Kind.Colon, 1, 1), tok(Kind.Text, 3, 1)]
-    )
-
-    t.equal(lex('a :'), [tok(Kind.Text, 0, 2), tok(Kind.Colon, 2, 1)])
+    t.equal(lex('a:'), [tok(Kind.Text, 0, 2)])
+    t.equal(lex('a: '), [tok(Kind.Text, 0, 3)])
+    t.equal(lex('a :'), [tok(Kind.Text, 0, 3)])
     t.equal(lex(':a'), [tok(Kind.Colon, 0, 1), tok(Kind.Text, 1, 1)])
   }
 
@@ -208,13 +215,13 @@ fn pub tests(t: mut Tests) {
   }
 
   t.test('Custom blocks') fn (t) {
-    t.equal(lex('a==='), [tok(Kind.Text, 0, 4)])
-    t.equal(lex('='), [tok(Kind.Text, 0, 1)])
-    t.equal(lex('=='), [tok(Kind.Text, 0, 2)])
-    t.equal(lex('==='), [tok(Kind.Block(3), 0, 3)])
-    t.equal(lex('===='), [tok(Kind.Block(4), 0, 4)])
+    t.equal(lex('a:::'), [tok(Kind.Text, 0, 4)])
+    t.equal(lex(':'), [tok(Kind.Colon, 0, 1)])
+    t.equal(lex('::'), [tok(Kind.Text, 0, 2)])
+    t.equal(lex(':::'), [tok(Kind.Block(3), 0, 3)])
+    t.equal(lex('::::'), [tok(Kind.Block(4), 0, 4)])
     t.equal(
-      lex("===\na"),
+      lex(":::\na"),
       [
         tok(Kind.Block(3), 0, 3),
         tok(Kind.SoftBreak, 3, 1),

@@ -129,7 +129,7 @@ class Parser {
           case Custom(close) if open == close -> break
           case _ -> nodes.push(try custom_block(open))
         }
-        case Some(ReferenceOpen) -> try reference
+        case Some(Reference) -> try reference
         case Some(ThematicBreak) -> {
           skip_token
           nodes.push(Node.ThematicBreak)
@@ -399,12 +399,7 @@ class Parser {
   }
 
   fn mut reference -> Result[Nil, Error] {
-    skip_token
-
-    let name = try text_until(Kind.BracketClose)
-
-    try expect(Kind.Colon)
-
+    let name = token_value(next_token.unwrap)
     let url = text_line
 
     @references.set(name, url)

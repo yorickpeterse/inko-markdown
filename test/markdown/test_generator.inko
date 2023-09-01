@@ -22,7 +22,7 @@ fn pub tests(t: mut Tests) {
   }
 
   t.test('Strong text') fn (t) {
-    t.equal(gen('*abc*'), '<p><strong>abc</strong></p>')
+    t.equal(gen('**abc**'), '<p><strong>abc</strong></p>')
   }
 
   t.test('Code spans') fn (t) {
@@ -40,17 +40,17 @@ fn pub tests(t: mut Tests) {
 
   t.test('Links') fn (t) {
     t.equal(gen('<foo>'), '<p><a href="foo">foo</a></p>')
-    t.equal(gen('[*a*](b)'), '<p><a href="b"><strong>a</strong></a></p>')
-    t.equal(gen('[*a*][b]'), '<p><a><strong>a</strong></a></p>')
+    t.equal(gen('[**a**](b)'), '<p><a href="b"><strong>a</strong></a></p>')
+    t.equal(gen('[**a**][b]'), '<p><a><strong>a</strong></a></p>')
     t.equal(
-      gen("[*a*][b]\n[#b]: foo"), '<p><a href="foo"><strong>a</strong></a></p>'
+      gen("[**a**][b]\n[b]: foo"), '<p><a href="foo"><strong>a</strong></a></p>'
     )
   }
 
   t.test('Images') fn (t) {
     t.equal(gen('![a](b)'), '<p><img src="b" alt="a" /></p>')
     t.equal(gen('![a][b]'), '<p><img alt="a" /></p>')
-    t.equal(gen("![a][b]\n[#b]: b"), '<p><img src="b" alt="a" /></p>')
+    t.equal(gen("![a][b]\n[b]: b"), '<p><img src="b" alt="a" /></p>')
   }
 
   t.test('Footnotes') fn (t) {
@@ -75,8 +75,8 @@ fn pub tests(t: mut Tests) {
   }
 
   t.test('Lists') fn (t) {
-    t.equal(gen('- *a*'), '<ul><li><strong>a</strong></li></ul>')
-    t.equal(gen('+ *a*'), '<ol><li><strong>a</strong></li></ol>')
+    t.equal(gen('- **a**'), '<ul><li><strong>a</strong></li></ul>')
+    t.equal(gen('1. **a**'), '<ol><li><strong>a</strong></li></ol>')
   }
 
   t.test('Blockquotes') fn (t) {
@@ -98,8 +98,8 @@ fn pub tests(t: mut Tests) {
   }
 
   t.test('Custom blocks') fn (t) {
-    t.equal(gen("===\nfoo\n==="), '<div><p>foo</p></div>')
-    t.equal(gen("=== abc\nfoo\n==="), '<div class="abc"><p>foo</p></div>')
+    t.equal(gen(":::\nfoo\n:::"), '<div><p>foo</p></div>')
+    t.equal(gen("::: abc\nfoo\n:::"), '<div class="abc"><p>foo</p></div>')
   }
 
   t.test('Custom spans') fn (t) {

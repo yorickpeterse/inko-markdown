@@ -15,6 +15,8 @@ let RPAR = 41
 let ASTERISK = 42
 let PLUS = 43
 let HYPHEN = 45
+let PERIOD = 46
+let ONE = 49
 let COLON = 58
 let LT = 60
 let EQ = 61
@@ -50,7 +52,7 @@ class enum Kind {
   case ParenClose
   case ParenOpen
   case Quote(Int)
-  case ReferenceOpen
+  case Reference
   case SoftBreak
   case Strong
   case Text
@@ -66,7 +68,7 @@ class enum Kind {
 
   fn description -> String {
     match self {
-      case Block(n) -> "a block opening/closing tag (\"{'='.repeat(n)}\")"
+      case Block(n) -> "a block opening/closing tag (\"{':'.repeat(n)}\")"
       case Strong -> 'a strong emphasis symbol ("*")'
       case BracketClose -> 'a closing bracket ("]")'
       case BracketOpen -> 'an opening bracket ("[")'
@@ -91,7 +93,7 @@ class enum Kind {
       case Hash(n) -> "{n} hash (\"#\") signs"
       case FootnoteOpen -> 'a footnote opening tag ("[^")'
       case Quote(n) -> "{n} blockquote (\">\") signs"
-      case ReferenceOpen -> 'a reference opening tag ("[#")'
+      case Reference -> 'a reference definition tag ("[...]:")'
       case ThematicBreak -> 'a thematic break tag ("---")'
       case Caret -> 'a caret ("^")'
       case Tilde -> 'a tilde ("~")'
@@ -130,7 +132,7 @@ impl Equal[Kind] for Kind {
       case (Hash(a), Hash(b)) -> a == b
       case (FootnoteOpen, FootnoteOpen) -> true
       case (Quote(a), Quote(b)) -> a == b
-      case (ReferenceOpen, ReferenceOpen) -> true
+      case (Reference, Reference) -> true
       case (ThematicBreak, ThematicBreak) -> true
       case (Caret, Caret) -> true
       case (Tilde, Tilde) -> true
@@ -174,7 +176,7 @@ impl Format for Kind {
       case Hash(n) -> formatter.tuple('Hash').field(n).finish
       case FootnoteOpen -> formatter.tuple('FootnoteOpen').finish
       case Quote(n) -> formatter.tuple('Quote').field(n).finish
-      case ReferenceOpen -> formatter.tuple('ReferenceOpen').finish
+      case Reference -> formatter.tuple('Reference').finish
       case ThematicBreak -> formatter.tuple('ThematicBreak').finish
       case Caret -> formatter.tuple('Caret').finish
       case Tilde -> formatter.tuple('Tilde').finish
@@ -319,10 +321,8 @@ class Lexer {
     loop {
       match current {
         case Some(
-          ASTERISK
-            or BACKSLASH
+          BACKSLASH
             or CARET
-            or COLON
             or GRAVE
             or GT
             or LBRACK
@@ -336,6 +336,10 @@ class Lexer {
             or TILDE
             or UNDERSCORE
         ) -> break
+        case Some(ASTERISK) -> match peek {
+          case Some(ASTERISK) -> break
+          case _ -> advance(1)
+        }
         case Some(EXCL) -> match peek {
           case Some(LBRACK) -> break
           case _ -> advance(1)
@@ -376,6 +380,7 @@ class Lexer {
     advance(1)
 
     let token = if ordered {
+      advance(1)
       token(Kind.OrderedList(indent), start)
     } else {
       token(Kind.UnorderedList(indent), start)
@@ -399,7 +404,13 @@ impl Iter[Token] for Lexer {
   fn pub mut next -> Option[Token] {
     let start = @offset
     let token = match current {
-      case Some(ASTERISK) -> single(Kind.Strong)
+      case Some(ASTERISK) -> match peek {
+        case Some(ASTERISK) -> double(Kind.Strong)
+        case _ -> {
+          advance(1)
+          token(Kind.Text, start)
+        }
+      }
       case Some(HYPHEN) if @line_start -> match peek {
         case Some(HYPHEN) -> {
           advance(1)
@@ -418,19 +429,64 @@ impl Iter[Token] for Lexer {
         }
         case _ -> list(start, indent: 0, ordered: false)
       }
-      case Some(PLUS) if @line_start -> list(start, indent: 0, ordered: true)
+      case Some(ONE) if @line_start -> match peek {
+        case Some(PERIOD) -> list(start, indent: 0, ordered: true)
+        case _ -> text(start)
+      }
       case Some(PIPE) if @line_start -> match peek {
         case Some(EQ) -> double_without_spaces(Kind.TableHeader)
         case Some(HYPHEN) -> double_without_spaces(Kind.TableRow)
         case Some(PLUS) -> double_without_spaces(Kind.TableFooter)
         case _ -> single_without_spaces(Kind.TableColumn)
       }
-      case Some(COLON) -> single_without_spaces(Kind.Colon)
+      case Some(COLON) -> match peek {
+        case Some(COLON) -> {
+          advance(1)
+          advance_while(COLON)
+
+          let size = @offset - start
+
+          if size <= 2 {
+            token(Kind.Text, start)
+          } else {
+            let tok = token(Kind.Block(size), start)
+
+            advance_while_spaces
+            tok
+          }
+        }
+        case _ -> single_without_spaces(Kind.Colon)
+      }
       case Some(UNDERSCORE) -> single(Kind.Underscore)
       case Some(LBRACK) -> match peek {
         case Some(CARET) -> double(Kind.FootnoteOpen)
-        case Some(HASH) -> double(Kind.ReferenceOpen)
-        case _ -> single(Kind.BracketOpen)
+        case _ -> {
+          advance(1)
+
+          let name_start = @offset
+
+          advance_while_text
+
+          match current {
+            case Some(RBRACK) -> match peek {
+              case Some(COLON) -> {
+                let token = token(Kind.Reference, name_start)
+
+                advance(2)
+                advance_while_spaces
+                token
+              }
+              case _ -> {
+                @offset = name_start
+                token(Kind.BracketOpen, start)
+              }
+            }
+            case _ -> {
+              @offset = name_start
+              token(Kind.BracketOpen, start)
+            }
+          }
+        }
       }
       case Some(RBRACK) -> single(Kind.BracketClose)
       case Some(LCURLY) -> single(Kind.CurlyOpen)
@@ -454,21 +510,6 @@ impl Iter[Token] for Lexer {
             advance_if_newline
             token
           }
-        }
-      }
-      case Some(EQ) -> {
-        advance(1)
-        advance_while(EQ)
-
-        let size = @offset - start
-
-        if size <= 2 {
-          token(Kind.Text, start)
-        } else {
-          let tok = token(Kind.Block(size), start)
-
-          advance_while_spaces
-          tok
         }
       }
       case Some(EXCL) -> {
@@ -530,7 +571,10 @@ impl Iter[Token] for Lexer {
         # easier for the parser to build an AST.
         match current {
           case Some(HYPHEN) -> list(start, indent, ordered: false)
-          case Some(PLUS) -> list(start, indent, ordered: true)
+          case Some(ONE) -> match peek {
+            case Some(PERIOD) -> list(start, indent, ordered: true)
+            case _ -> token(Kind.Indent, start)
+          }
           case _ -> token(Kind.Indent, start)
         }
       }
