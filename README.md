@@ -203,13 +203,15 @@ the wrapped lines start with at least a single space:
 
 ## Footnotes
 
-Footnotes are referred to using `[^footnote]` name, and defined using
-`[^footnote]: value`. Footnote values are limited to inline elements, but their
-values can be wrapped across multiple lines, as long as each line starts with at
-least a single space:
+Footnotes are referred to using `[^footnote]`, and defined using `[^footnote]:
+value`. Footnote values are limited to inline elements, but their values can be
+wrapped across multiple lines, as long as each line starts with at least a
+single space:
 
 ```markdown
-[^footnote]: foo
+This is an example of a footnote[^example].
+
+[^example]: foo
   bar
   baz
 ```
