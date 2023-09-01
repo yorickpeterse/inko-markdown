@@ -1,138 +1,204 @@
 # inko-markdown
 
-An opinionated subset of [Markdown](https://en.wikipedia.org/wiki/Markdown),
+An opinionated dialect of [Markdown](https://en.wikipedia.org/wiki/Markdown),
 aimed at making it easy to use and maintain, written in
 [Inko](https://inko-lang.org/).
 
-inko-markdown is opinionated in that it does away with some of the
-inconsistencies and questionable features of Markdown, such as offering
-different ways of writing lists and headers.
-
-inko-markdown remains compatible with existing Markdown tooling such as
-[Vale](https://github.com/errata-ai/vale) (ignoring any extensions), making it
-easier to adopt.
-
-# Why
-
-I needed a way to convert Markdown documents to HTML, without relying on any C
-libraries. Markdown itself lacks a clear specification and is rather painful to
-parse. While [CommonMark](https://commonmark.org/) exists, it doesn't address
-the problems with Markdown, instead it just provides a specification of them.
-
-[Djot](https://djot.net/) is an interesting alternative, and is _mostly_
-compatible with Markdown. I say _mostly_ because it makes several changes that
-make switching between Markdown and Djot tricky, such as `*word*` resulting in
-`<i>word</i>` in Markdown, but `<strong>word</strong>` in Djot. Similarly to
-Markdown, Djot also provides different ways of writing lists, complicating the
-parsing process, and has some odd requirements for writing nested lists. All
-this means that you can't seamlessly switch between Djot and Markdown.
+This library started as an experiment in parsing Markdown using conventional
+[LL(k)](https://en.wikipedia.org/wiki/LL_parser) parsing techniques, rather than
+the usual approach involving distinct block and inline parsing phases. As it
+turns out, it's certainly doable provided we bend the rules a little bit. For
+example, parsing becomes easier if we drop support for indented code blocks and
+use a slightly different syntax for block quotes.
 
 # Differences with Markdown
 
-- There are only two ways of writing lists: `- item` for unordered lists, and
-  `1. item` for ordered lists. Other numbers (e.g. `3.`) for ordered lists
-  aren't supported.
-- `**word**` is `<strong>word</strong>` and `_word_` is `<em>word</em>`. Nesting
-  the same emphasis type isn't supported, and we only support single underscores
-  for regular emphasis. This means `__word__` results in
-  `<em></em>word<em></em>`.
-- No support for setext headings.
-- Hard line breaks use a trailing `\` like Djot, instead of two spaces, as
-  editors are likely to remove trailing whitespace, and because trailing
-  whitespace isn't easily visible.
-- No support for inline HTML, decoupling the Markup from the browser, and
-  removing the need for also including an HTML parser.
-- No support for indented code blocks, only fenced code blocks are supported.
-- In general, the parser is much more strict/pedantic about how things should be
-  parsed. This makes maintenance easier and leads to more consistent and
-  predictable behaviour.
-- No auto linking based on the URI scheme, just use `<link>` or `[text](link)`
-  instead.
-- Anything else I forgot to implement or just don't care for :)
-- No support for triple strong/emphasis delimiters (e.g. `***foo***`).
-- `[foo][bar]` is always a link with text "foo" using reference "bar". If "bar"
-  isn't defined, the link URL is empty.
-- Using triple grave accents, even in inline contexts, always results in a code
-  block.
-- List values are restricted to inline elements or other lists, meaning you
-  can't put e.g. a title in a list value.
+To make parsing easier (read: not a nightmare), inko-markdown only supports a
+subset of the Markdown syntax, though this should still be good enough for most
+Markdown documents out there. Apart from syntax specific differences (as
+mentioned below), one big difference is that inko-markdown is strict: when it
+encounters invalid syntax, an error is produced instead of silently rendering
+the document incorrectly. This _significantly_ simplifies the parser, and makes
+debugging incorrectly formatted documents easier.
+
+## Lists
+
+Unordered lists are created using `-`, and ordered lists using `1.`. Other list
+markers (including `2.`, `3.`, etc) aren't supported:
+
+```markdown
+- Unordered list item 1
+- Unordered list item 2
+
+1. Ordered list item 1
+1. Ordered list item 2
+```
+
+List values are limited to inline values and other lists. Block elements inside
+lists aren't supported.
+
+## Emphasis
+
+For strong emphasis, only `**strong**` is supported. For regular emphasis, only
+`_emphasis_` is supported. `__word__` is parsed as `<em></em>word<em></em>`.
+
+## Headings
+
+Only ATX headings are supported:
+
+```markdown
+# Heading 1
+## Heading 2
+### Heading 3
+#### Heading 4
+##### Heading 5
+###### Heading 6
+```
+
+The contents of a heading can be wrapped like paragraphs, so this:
+
+```markdown
+# Foo
+bar
+```
+
+Turns into this:
+
+```html
+<h1>Foo
+bar</h1>
+```
+
+## Hard breaks
+
+Hard line breaks use a trailing backslash, instead of relying on trailing
+whitespace:
+
+```markdown
+this is \
+a single paragraph
+```
+
+## No inline HTML
+
+Inline HTML isn't supported, but custom blocks _are_ supported (see the
+extensions section for more details).
+
+## Code blocks and spans
+
+Indented code blocks aren't supported, instead only fenced code blocks and
+inline code blocks are supported. Fenced code blocks are _always_ parsed as code
+blocks, even if they are preceded by text:
+
+````markdown
+This is text```
+this is a code block, instead of literal text (per CommonMark)
+```
+````
+
+Leading/trailing whitespace inside a code span isn't stripped and instead left
+as-is.
+
+## Block quotes use a syntax similar to fenced code blocks
+
+Markdown's block quote syntax is tricky to parse, and rather painful to work
+with as a document author. inko-markdown instead uses a block syntax similar to
+fenced code blocks, inspired by GitLab Flavoured Markdown:
+
+```markdown
+>>>
+block quote
+>>>
+```
+
+Similar to fenced code blocks, the signs can be repeated to allow for nested
+block quotes:
+
+```markdown
+>>>
+before
+
+>>>>
+inner
+>>>>
+
+after
+>>>
+```
+
+## Only one type of thematic break
+
+The only form of thematic breaks that is supported is `---`, without any spaces
+between the hyphens.
 
 # Extensions
 
-- Fenced code blocks using triple backticks.
-- Pipe tables.
-- Admonitions, using the [Python
-  Markdown](https://python-markdown.github.io/extensions/admonition/) syntax.
-- [Front matter](https://jekyllrb.com/docs/front-matter/), using a simple
-  YAML-like syntax (that isn't a pain to parse).
-- Footnotes
+## Tables
 
-## Fenced code blocks
+The commonly used pipe table syntax is tricky to parse, and doesn't work well
+for anything but basic content, as you can't wrap the content across lines.
+inko-markdown uses a different syntax that makes working with tables easier.
 
-Fenced code blocks use the usual triple (or more) backtick syntax:
+A basic table looks like this:
 
-````
-```
-code goes here
-```
-````
-
-The number of backticks must be at least three or more. The closing tag must
-match the same number of backticks. We allow more than three backticks so you
-can nest fenced code blocks, on the rare occasion this is necessary (such as the
-above example).
-
-## Pipe tables
-
-```
-| Header column 1 | Header column 2
-|:----------------|:--------------
-| Row column 1    | Row column 2
+```markdown
+|-
+| Row 1 column 1
+| Row 1 column 2
+|-
+| Row 2 column 1
+| Row 2 column 2
 ```
 
-Here `:---` is used to signal that the previous row is the header row. Unlike
-other Markdown dialects, the alignment is up to the generator/output, i.e
-there's no `---:` support.
+Here `|-` signals the start of a table row, and `|` the start of a column in
+that row.
 
-The number of hyphens doesn't matter, as long as there's at least one. Alignment
-isn't necessary either, meaning this is perfectly fine (ignoring the part where
-it's hard to read):
+Header rows are created using `|=` and must come _before_ regular rows:
 
-```
-| Header column 1 | Header column 2
-|:-|:-
-| Row column 1 | Row column 2
-```
-
-Multi-line content in cells isn't supported. This is annoying, but alternatives
-require a different syntax for tables, and I haven't come up with something that
-doesn't come with its own problems.
-
-## Admonitions
-
-Admonitions use the following syntax:
-
-```
-!!! KIND
-    BODY
+```markdown
+|=
+| Header row 1 column 1
+| Header row 1 column 2
+|-
+| Row 1 column 1
+| Row 1 column 2
+|-
+| Row 2 column 1
+| Row 2 column 2
 ```
 
-`KIND` can be `tip`, `info`, `warning` or `note`.
+Table footers are created using `|+`, and must come _after_ regular rows:
 
-Some examples:
-
+```markdown
+|=
+| Header row 1 column 1
+| Header row 1 column 2
+|-
+| Row 1 column 1
+| Row 1 column 2
+|-
+| Row 2 column 1
+| Row 2 column 2
+|+
+| Footer row 1 column 1
+| Footer row 1 column 2
 ```
-!!! tip
-    This is the body.
 
-!!! info
-    This is the body.
+Cell/row formatting rules, such as text alignment, aren't supported; you should
+use CSS for that instead.
 
-!!! warning
-    This is the body.
+If you start a table with a footer, or a column (without the row marker), the
+parser produces an error.
 
-!!! note
-    This is the body.
+Table cells are limited to inline elements, so you can't put (for example) a
+list in a table cell. You can however wrap the content across lines, provided
+the wrapped lines start with at least a single space:
+
+```markdown
+|-
+| Row 1 column 1
+| Row 1 column 2
+  wrapped across a line
 ```
 
 ## Footnotes
@@ -148,35 +214,55 @@ least a single space:
   baz
 ```
 
-## Front matter
+## Custom blocks and spans
 
-Front matter starts with `---` on its own line, and ends with `---` on its own
-line. Within the front matter block, you can specify keys and values like so:
+Similar to [Djot](https://djot.net/), inko-markdown supports custom blocks/divs
+with an optional tag:
 
-```
----
-KEY1: VALUE
-KEY2: VALUE
----
-```
+```markdown
+::: tag-name
 
-Each key is an identifier limited to characters in the range `[a-zA-Z0-9_]`. The
-value is text that runs until the end of the line. This text may span multiple
-lines as long as each line is preceded by at least a single space. If multiple
-spaces are used, they are compressed into a single space. The value _can_ start
-on a new line, as long as it too starts with at least a single space:
-
-```
----
-title:
-  This is the title
-description:
-  This is the description of my blog post.
----
+:::
 ```
 
-Values are limited to text only. If you need lists, you can use a comma
-separated string and handle this as part of whatever consumes the meta data.
+Just like fenced code blocks, custom blocks need at least three colons (`:::`),
+but more are supported to allow nesting of blocks:
+
+```markdown
+::: outer
+:::: inner
+foo
+::::
+:::
+```
+
+This results in:
+
+```html
+<div class="outer">
+  <div class="inner">
+    <p>foo</p>
+  </div>
+</div>
+```
+
+Inline spans also use the same syntax as Djot:
+
+```markdown
+[This is the body]{highlight}
+```
+
+This results in:
+
+```html
+<p><span class="highlight">This is the body</span></p>
+```
+
+## Superscript and subscript
+
+Superscript text uses the syntax `^body^`, while subscript uses `~body~`. The
+content can be any inline value. Nesting isn't supported, so `^^foo^^` results
+in `<sup></sup>foo<sup></sup>`.
 
 # Requirements
 
@@ -191,7 +277,28 @@ inko pkg sync
 
 # Usage
 
-TODO
+Hello world using inko-markdown:
+
+```inko
+import markdown.Document
+import std.stdio.STDOUT
+
+class async Main {
+  fn async main {
+    let input = 'Hello **world**'
+    let doc = Document.parse(input).unwrap
+    let html = doc.to_html.to_string
+
+    STDOUT.new.print(html)
+  }
+}
+```
+
+This produces the following HTML:
+
+```html
+<p>Hello <strong>world</strong></p>
+```
 
 # License
 

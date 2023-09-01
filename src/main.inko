@@ -1,18 +1,11 @@
 import markdown.Document
-import std.env
-import std.fs.file.ReadOnlyFile
 import std.stdio.STDOUT
 
 class async Main {
   fn async main {
-    let arg = env.arguments.get(0)
-    let file = ReadOnlyFile.new(arg).expect('failed to open the Markdown file')
-    let bytes = ByteArray.new
-
-    file.read_all(bytes).expect('failed to read the Markdown file')
-
-    let doc = Document.parse(bytes).expect('failed to parse the Markdown')
-    let html = doc.to_html.to_pretty_string
+    let input = 'Hello **world**'
+    let doc = Document.parse(input).unwrap
+    let html = doc.to_html.to_string
 
     STDOUT.new.print(html)
   }

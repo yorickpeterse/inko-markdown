@@ -300,6 +300,10 @@ fn pub tests(t: mut Tests) {
     t.equal(parse('###### Foo'), Result.Ok([h(6, [text('Foo')])]))
     t.equal(parse('# _Foo_'), Result.Ok([h(1, [em([text('Foo')])])]))
     t.equal(parse("a\n# b"), Result.Ok([p([text('a')]), h(1, [text('b')])]))
+    t.equal(
+      parse("# Foo\nbar"),
+      Result.Ok([h(1, [text('Foo'), text("\n"), text('bar')])])
+    )
   }
 
   t.test('Link reference definitions') fn (t) {
