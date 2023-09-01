@@ -131,6 +131,15 @@ after
 The only form of thematic breaks that is supported is `---`, without any spaces
 between the hyphens.
 
+## Links containing parentheses need to be escaped
+
+When using the syntax `[text](link)`, if `link` contains parentheses, these must
+be escaped like so:
+
+```markdown
+[Cookie](https://en.wikipedia.org/wiki/Cookie_\(disambiguation\))
+```
+
 # Extensions
 
 ## Tables
