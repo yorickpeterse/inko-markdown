@@ -161,7 +161,7 @@ fn pub tests(t: mut Tests) {
     t.equal(parse('** foo **'), Result.Ok([p([strong([text(' foo ')])])]))
     t.equal(
       parse("**\na\n**"),
-      Result.Ok([p([strong([text("\n"), text('a'), text("\n")])])])
+      Result.Ok([p([strong([text("\n"), text('a')])])])
     )
 
     t.equal(
@@ -174,11 +174,7 @@ fn pub tests(t: mut Tests) {
     t.equal(parse('_foo_'), Result.Ok([p([em([text('foo')])])]))
     t.equal(parse(' _foo_ '), Result.Ok([p([em([text('foo')]), text(' ')])]))
     t.equal(parse('_ foo _'), Result.Ok([p([em([text(' foo ')])])]))
-    t.equal(
-      parse("_\na\n_"),
-      Result.Ok([p([em([text("\n"), text('a'), text("\n")])])])
-    )
-
+    t.equal(parse("_\na\n_"), Result.Ok([p([em([text("\n"), text('a')])])]))
     t.equal(
       parse('a_b_c'),
       Result.Ok([p([text('a'), em([text('b')]), text('c')])])
@@ -303,6 +299,11 @@ fn pub tests(t: mut Tests) {
     t.equal(
       parse("# Foo\nbar"),
       Result.Ok([h(1, [text('Foo'), text("\n"), text('bar')])])
+    )
+
+    t.equal(
+      parse("# a\n# b"),
+      Result.Ok([h(1, [text('a')]), h(1, [text('b')])])
     )
   }
 
@@ -652,5 +653,13 @@ c
   t.test('Custom spans') fn (t) {
     t.equal(parse('[text]{}'), Result.Ok([p([span('', [text('text')])])]))
     t.equal(parse('[text]{tag}'), Result.Ok([p([span('tag', [text('text')])])]))
+  }
+
+  t.test('Text followed by a block element') fn (t) {
+    t.equal(parse("a\n- b"), Result.Ok([p([text('a')]), ul([li([text('b')])])]))
+    t.equal(parse("a\n1.b"), Result.Ok([p([text('a')]), ol([li([text('b')])])]))
+    t.equal(parse("a\n- b"), Result.Ok([p([text('a')]), ul([li([text('b')])])]))
+    t.equal(parse("a\n# b"), Result.Ok([p([text('a')]), h(1, [text('b')])]))
+    t.equal(parse("a\n---"), Result.Ok([p([text('a')]), hr]))
   }
 }

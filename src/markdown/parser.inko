@@ -209,20 +209,6 @@ class Parser {
   fn mut paragraph(nodes: mut Array[Node]) -> Result[Nil, Error] {
     let inlines = try inline(Inline.Default)
 
-    # Not producing trailing newlines is a bit tricky in the inline() method, as
-    # we'd have to look for many potential tokens to skip producing a newline,
-    # so instead we just remove trailing newlines here.
-    #
-    # This isn't strictly necessary, but it makes the output a bet more
-    # predictable and easier to test against.
-    match inlines.last {
-      case Some(Text("\n")) -> {
-        inlines.pop
-        nil
-      }
-      case _ -> {}
-    }
-
     if inlines.empty? { return Result.Ok(nil) }
 
     nodes.push(Node.Paragraph(inlines))
@@ -328,6 +314,23 @@ class Parser {
         }
         case _ -> break
       }
+    }
+
+    # We may end up producing a trailing newline for markup such as:
+    #
+    #     # a\n
+    #     # b
+    #
+    # In this case the nodes are [text("a"), text("\n")]. When producing the
+    # newline, we can't easily check if whatever comes next is inline or block
+    # content. We handle this here by removing trailing newlines. This isn't
+    # ideal, but the alternative is duplicating a ton of code, which is worse.
+    match nodes.last {
+      case Some(Text("\n")) -> {
+        nodes.pop
+        nil
+      }
+      case _ -> {}
     }
 
     Result.Ok(nodes)

@@ -311,6 +311,79 @@ This produces the following HTML:
 <p>Hello <strong>world</strong></p>
 ```
 
+# Filters
+
+Filters are used to transform HTML documents generated from Markdown documents.
+Filters implement the trait `markdown.html.Filter`, and modify documents in
+place. Filters are used as follows:
+
+```inko
+import markdown.Document
+import markdown.html.TableOfContents
+
+# Filters operate on HTML documents, not Markdown documents, so we must generate
+# an HTML document first:
+let doc = Document.parse('# Foo').unwrap.to_html
+
+TableOfContents.new.run(doc)
+doc.to_pretty_string
+```
+
+## TableOfContents
+
+The filter `markdown.html.TableOfContents` adds `id` attributes to all headers
+based on their content, and optionally replaces custom blocks with the `toc`
+tag with a table of contents. For example, consider the following Markdown
+document:
+
+```markdown
+::: toc
+:::
+
+# Installation
+## Linux
+### Alpine
+### Ubuntu
+## Windows
+# Manually
+```
+
+When converting this to HTML and applying this filter, the output is transformed
+into the following:
+
+```html
+<ul class="toc">
+  <li>
+    <a href="#installation">Installation</a>
+    <ul>
+      <li>
+        <a href="#linux">Linux</a>
+        <ul>
+          <li><a href="#alpine">Alpine</a></li>
+          <li><a href="#ubuntu">Ubuntu</a></li>
+        </ul>
+      </li>
+      <li><a href="#windows">Windows</a></li>
+    </ul>
+  </li>
+  <li><a href="#manually">Manually</a></li>
+</ul>
+<h1 id="installation">Installation</h1>
+<h2 id="linux">Linux</h2>
+<h3 id="alpine">Alpine</h3>
+<h3 id="ubuntu">Ubuntu</h3>
+<h2 id="windows">Windows</h2>
+<h1 id="manually">Manually</h1>
+```
+
+The following fields can be set to customize the process of generating the table
+of contents:
+
+| Option    | Default | Description
+|:----------|:--------|:-------------------------------------------------------
+| `class`   | `toc`   | The `class` value of the container.
+| `maximum` | `6`     | The maximum header level to include.
+
 # License
 
 All source code in this repository is licensed under the Mozilla Public License

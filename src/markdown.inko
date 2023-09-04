@@ -1,6 +1,6 @@
 # An opinionated subset of Markdown.
 import builder.html
-import markdown.generator.Html
+import markdown.html.Generator
 import markdown.parser.(Error, Parser)
 import std.cmp.Equal
 import std.fmt.(Format, Formatter)
@@ -49,7 +49,7 @@ class pub Document {
   #       .to_html
   #       .to_string # => '<p><strong>hello</strong></p>'
   fn pub to_html -> html.Document {
-    Html.new(self).generate
+    Generator.new(self).generate
   }
 }
 
