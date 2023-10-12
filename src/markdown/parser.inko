@@ -55,14 +55,14 @@ class enum Block {
 }
 
 # A parser that turns a Markdown document into an AST.
-class Parser {
-  let @lexer: Lexer
+class Parser[T: Bytes] {
+  let @lexer: Lexer[T]
   let @peeked: Option[Option[Token]]
   let @references: Map[String, String]
   let @footnotes: Map[String, Array[Node]]
 
   # Returns a new `Parser` that will parse the given input.
-  fn static new(input: ref Bytes) -> Parser {
+  fn static new(input: T) -> Parser[T] {
     Parser {
       @lexer = Lexer.new(input),
       @peeked = Option.None,
@@ -439,6 +439,7 @@ class Parser {
         let val = try inline(Inline.Footnote)
 
         @footnotes.set(name, val)
+        nil
       }
       case _ -> nodes.push(Node.Footnote(name))
     }

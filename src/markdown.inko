@@ -30,7 +30,7 @@ class pub Document {
   #     import markdown.Document
   #
   #     Document.parse('*hello*')
-  fn pub static parse(input: ref Bytes) -> Result[Document, Error] {
+  fn pub static parse[T: Bytes](input: T) -> Result[Document, Error] {
     Parser.new(input).parse
   }
 

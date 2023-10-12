@@ -214,12 +214,12 @@ impl Format for Token {
 }
 
 # A simple lexer for Markdown documents.
-class Lexer {
-  let @input: ref Bytes
+class Lexer[T: Bytes] {
+  let @input: T
   let @offset: Int
   let @line_start: Bool
 
-  fn static new(input: ref Bytes) -> Lexer {
+  fn static new(input: T) -> Lexer[T] {
     Lexer { @input = input, @offset = 0, @line_start = true }
   }
 

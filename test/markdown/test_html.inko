@@ -17,7 +17,7 @@ fn parse(input: String) -> Document {
   Document.parse(input).unwrap
 }
 
-fn filter(input: String, filter: Filter) -> String {
+fn filter[T: mut + Filter](input: String, filter: T) -> String {
   let doc = parse(input).to_html
 
   filter.run(doc)
