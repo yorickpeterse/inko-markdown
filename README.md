@@ -277,12 +277,12 @@ in `<sup></sup>foo<sup></sup>`.
 
 # Requirements
 
-- Inko `main` (for now)
+- Inko 0.13.1 or newer
 
 # Installation
 
 ```bash
-inko pkg add github.com/yorickpeterse/inko-markdown 0.1.0
+inko pkg add github.com/yorickpeterse/inko-markdown 0.2.0
 inko pkg sync
 ```
 
