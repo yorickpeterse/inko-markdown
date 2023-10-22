@@ -4,6 +4,10 @@
 
 <!-- new section -->
 
+## 0.3.0 (2023-10-22)
+
+No changes
+
 ## 0.2.0 (2023-09-07)
 
 No changes
