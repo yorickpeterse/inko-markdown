@@ -2,7 +2,7 @@
 	@test $${VERSION?The VERSION variable must be set}
 
 release/changelog: .check-version
-	ruby scripts/changelog.rb "${VERSION}"
+	clogs "${VERSION}"
 
 release/commit: .check-version
 	git add .
