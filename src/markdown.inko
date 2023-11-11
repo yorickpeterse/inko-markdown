@@ -166,6 +166,9 @@ class pub enum Node {
 
   # A hard line break.
   case LineBreak
+
+  # A block comment.
+  case Comment(String)
 }
 
 impl Equal[Node] for Node {
@@ -194,6 +197,7 @@ impl Equal[Node] for Node {
         a1 == b1 and a2 == b2 and a3 == b3
       }
       case (LineBreak, LineBreak) -> true
+      case (Comment(a), Comment(b)) -> a == b
       case _ -> false
     }
   }
@@ -239,6 +243,7 @@ impl Format for Node {
         formatter.tuple('Table').field(head).field(body).field(foot).finish
       }
       case LineBreak -> formatter.tuple('LineBreak').finish
+      case Comment(t) -> formatter.tuple('Comment').field(t).finish
     }
   }
 }

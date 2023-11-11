@@ -65,6 +65,7 @@ class enum Kind {
   case TableRow
   case TableFooter
   case LineBreak
+  case Comment
 
   fn description -> String {
     match self {
@@ -102,6 +103,7 @@ class enum Kind {
       case TableRow -> 'a pipe followed by a hyphen ("|-")'
       case TableFooter -> 'a pipe followed by a plus sign ("|+")'
       case LineBreak -> 'a hard line break'
+      case Comment -> 'a comment'
     }
   }
 }
@@ -141,6 +143,7 @@ impl Equal[Kind] for Kind {
       case (TableFooter, TableFooter) -> true
       case (TableRow, TableRow) -> true
       case (LineBreak, LineBreak) -> true
+      case (Comment, Comment) -> true
       case _ -> false
     }
   }
@@ -185,6 +188,7 @@ impl Format for Kind {
       case TableRow -> formatter.tuple('TableRow').finish
       case TableFooter -> formatter.tuple('TableFooter').finish
       case LineBreak -> formatter.tuple('LineBreak').finish
+      case Comment -> formatter.tuple('Comment').finish
     }
   }
 }
@@ -395,6 +399,27 @@ class Lexer[T: Bytes] {
     token(Kind.Text, start)
   }
 
+  fn mut comment -> Token {
+    let start = @offset
+
+    @offset += 4
+
+    while @offset < @input.size {
+      if @offset + 3 < @input.size
+        and @input.byte(@offset) == HYPHEN
+        and @input.byte(@offset + 1) == HYPHEN
+        and @input.byte(@offset + 2) == GT
+      {
+        @offset += 3
+        break
+      }
+
+      @offset += 1
+    }
+
+    token(Kind.Comment, start)
+  }
+
   fn token(kind: Kind, start: Int) -> Token {
     Token { @kind = kind, @offset = start, @size = @offset - start }
   }
@@ -495,7 +520,17 @@ impl Iter[Token] for Lexer {
       case Some(TILDE) -> single(Kind.Tilde)
       case Some(LPAR) -> single(Kind.ParenOpen)
       case Some(RPAR) -> single(Kind.ParenClose)
-      case Some(LT) -> single(Kind.Less)
+      case Some(LT) -> {
+        if @offset + 3 < @input.size
+          and @input.byte(@offset + 1) == EXCL
+          and @input.byte(@offset + 2) == HYPHEN
+          and @input.byte(@offset + 3) == HYPHEN
+        {
+          comment
+        } else {
+          single(Kind.Less)
+        }
+      }
       case Some(GT) -> {
         advance(1)
         advance_while(GT)

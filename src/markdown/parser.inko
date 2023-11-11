@@ -140,6 +140,7 @@ class Parser[T: Bytes] {
           @message = "Tables must start with a header or a single row",
           @offset = next_token.unwrap.offset,
         }
+        case Some(Comment) -> nodes.push(comment(next_token.unwrap))
         case Some(_) -> try paragraph(nodes)
         case _ -> break
       }
@@ -312,6 +313,7 @@ class Parser[T: Bytes] {
           case Footnote -> break
           case _ -> try footnote(nodes)
         }
+        case Some(Comment) -> nodes.push(comment(next_token.unwrap))
         case _ -> break
       }
     }
@@ -606,6 +608,11 @@ class Parser[T: Bytes] {
     }
 
     Result.Ok(rows)
+  }
+
+  fn mut comment(token: Token) -> Node {
+    # We don't want to include the `<!--` and `-->` tags in the comment text.
+    Node.Comment(slice(token.offset + 4, token.size - 7))
   }
 
   fn mut expect(kind: ref Kind) -> Result[Token, Error] {

@@ -123,6 +123,10 @@ fn span(tag: String, children: Array[Node]) -> Node {
   Node.Span(tag, children)
 }
 
+fn comment(text: String) -> Node {
+  Node.Comment(text)
+}
+
 fn pub tests(t: mut Tests) {
   t.test('Regular text') fn (t) {
     t.equal(parse('a'), Result.Ok([p([text('a')])]))
@@ -661,5 +665,12 @@ c
     t.equal(parse("a\n- b"), Result.Ok([p([text('a')]), ul([li([text('b')])])]))
     t.equal(parse("a\n# b"), Result.Ok([p([text('a')]), h(1, [text('b')])]))
     t.equal(parse("a\n---"), Result.Ok([p([text('a')]), hr]))
+  }
+
+  t.test('Comments') fn (t) {
+    t.equal(parse('<!---->'), Result.Ok([comment('')]))
+    t.equal(parse('<!-- a -->'), Result.Ok([comment(' a ')]))
+    t.equal(parse('a<!---->'), Result.Ok([p([text('a'), comment('')])]))
+    t.equal(parse('<!---->a'), Result.Ok([comment(''), p([text('a')])]))
   }
 }

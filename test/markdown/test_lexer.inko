@@ -265,4 +265,20 @@ fn pub tests(t: mut Tests) {
     t.equal(lex('|- '), [tok(Kind.TableRow, 0, 2)])
     t.equal(lex("|-\na"), [tok(Kind.TableRow, 0, 2), tok(Kind.Text, 3, 1)])
   }
+
+  t.test('Comments') fn (t) {
+    t.equal(lex('<!---->'), [tok(Kind.Comment, 0, 7)])
+    t.equal(lex('<!-- a -->'), [tok(Kind.Comment, 0, 10)])
+    t.equal(
+      lex('<!-- a -->b'),
+      [tok(Kind.Comment, 0, 10), tok(Kind.Text, 10, 1)]
+    )
+
+    t.equal(lex("<!--\n-->"), [tok(Kind.Comment, 0, 8)])
+    t.equal(lex('<!-- a'), [tok(Kind.Comment, 0, 6)])
+    t.equal(
+      lex('<!-'),
+      [tok(Kind.Less, 0, 1), tok(Kind.Text, 1, 1), tok(Kind.Text, 2, 1)]
+    )
+  }
 }

@@ -200,6 +200,7 @@ class pub Generator {
           }
         }
       }
+      case Comment(_) -> {}
     }
   }
 

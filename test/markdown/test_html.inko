@@ -193,6 +193,10 @@ fn pub tests(t: mut Tests) {
     )
   }
 
+  t.test('Generator.generate with comments') fn (t) {
+    t.equal(gen('<!-- a -->'), '')
+  }
+
   t.test('TableOfContents.run adds IDs to headers') fn (t) {
     t.equal(filter('# Foo', TableOfContents.new), '<h1 id="foo">Foo</h1>')
     t.equal(filter('## Foo', TableOfContents.new), '<h2 id="foo">Foo</h2>')
