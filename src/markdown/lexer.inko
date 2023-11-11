@@ -486,6 +486,8 @@ impl Iter[Token] for Lexer {
       case Some(LBRACK) -> match peek {
         case Some(CARET) -> double(Kind.FootnoteOpen)
         case _ -> {
+          let line_start = @line_start
+
           advance(1)
 
           let name_start = @offset
@@ -494,7 +496,7 @@ impl Iter[Token] for Lexer {
 
           match current {
             case Some(RBRACK) -> match peek {
-              case Some(COLON) -> {
+              case Some(COLON) if line_start -> {
                 let token = token(Kind.Reference, name_start)
 
                 advance(2)
