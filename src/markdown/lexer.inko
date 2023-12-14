@@ -108,7 +108,7 @@ class enum Kind {
   }
 }
 
-impl Equal[Kind] for Kind {
+impl Equal[ref Kind] for Kind {
   fn pub ==(other: ref Kind) -> Bool {
     match (self, other) {
       case (Block(a), Block(b)) -> a == b
@@ -200,7 +200,7 @@ class Token {
   let @size: Int
 }
 
-impl Equal[Token] for Token {
+impl Equal[ref Token] for Token {
   fn pub ==(other: ref Token) -> Bool {
     @kind == other.kind and @offset == other.offset and @size == other.size
   }

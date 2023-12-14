@@ -62,7 +62,7 @@ class pub enum Link {
   case Reference(String)
 }
 
-impl Equal[Link] for Link {
+impl Equal[ref Link] for Link {
   fn pub ==(other: ref Link) -> Bool {
     match (self, other) {
       case (Direct(a), Direct(b)) -> a == b
@@ -171,7 +171,7 @@ class pub enum Node {
   case Comment(String)
 }
 
-impl Equal[Node] for Node {
+impl Equal[ref Node] for Node {
   fn pub ==(other: ref Node) -> Bool {
     match (self, other) {
       case (Block(a1, a2), Block(b1, b2)) -> a1 == b1 and a2 == b2

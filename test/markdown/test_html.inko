@@ -1,6 +1,6 @@
 import markdown.Document
+import markdown.Node
 import markdown.html.(Filter, Generator, TableOfContents)
-import markdown.parser.Node
 import markdown.parser.Parser
 import std.test.Tests
 

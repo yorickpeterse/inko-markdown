@@ -14,7 +14,7 @@ class pub Error {
   let pub @offset: Int
 }
 
-impl Equal[Error] for Error {
+impl Equal[ref Error] for Error {
   fn pub ==(other: ref Error) -> Bool {
     @message == other.message and @offset == other.offset
   }
