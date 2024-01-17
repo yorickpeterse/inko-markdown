@@ -245,6 +245,17 @@ class Lexer[T: Bytes] {
     }
   }
 
+  fn peek_two -> (Option[Int], Option[Int]) {
+    let one = @offset + 1
+    let two = @offset + 2
+
+    if one < @input.size and two < @input.size {
+      (Option.Some(@input.byte(one)), Option.Some(@input.byte(two)))
+    } else {
+      (Option.None, Option.None)
+    }
+  }
+
   fn mut advance(size: Int) {
     @offset += size
     @line_start = false
@@ -452,10 +463,13 @@ impl Iter[Token] for Lexer {
             case _ -> token(Kind.Text, start)
           }
         }
-        case _ -> list(start, indent: 0, ordered: false)
+        case Some(SPACE) -> list(start, indent: 0, ordered: false)
+        case _ -> text(start)
       }
-      case Some(ONE) if @line_start -> match peek {
-        case Some(PERIOD) -> list(start, indent: 0, ordered: true)
+      case Some(ONE) if @line_start -> match peek_two {
+        case (Some(PERIOD), Some(SPACE)) -> {
+          list(start, indent: 0, ordered: true)
+        }
         case _ -> text(start)
       }
       case Some(PIPE) if @line_start -> match peek {

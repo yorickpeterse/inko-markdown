@@ -56,19 +56,22 @@ fn pub tests(t: mut Tests) {
   }
 
   t.test('Unordered lists') fn (t) {
-    t.equal(lex('-a'), [tok(Kind.UnorderedList(0), 0, 1), tok(Kind.Text, 1, 1)])
     t.equal(lex('- a'), [tok(Kind.UnorderedList(0), 0, 1), tok(Kind.Text, 2, 1)])
     t.equal(lex('  -'), [tok(Kind.UnorderedList(2), 0, 3)])
+    t.equal(lex('-'), [tok(Kind.Text, 0, 1)])
+    t.equal(lex('-a'), [tok(Kind.Text, 0, 2)])
     t.equal(lex('a-'), [tok(Kind.Text, 0, 2)])
     t.equal(lex('a- '), [tok(Kind.Text, 0, 3)])
   }
 
   t.test('Ordered lists') fn (t) {
-    t.equal(lex('1.a'), [tok(Kind.OrderedList(0), 0, 2), tok(Kind.Text, 2, 1)])
     t.equal(lex('1. a'), [tok(Kind.OrderedList(0), 0, 2), tok(Kind.Text, 3, 1)])
     t.equal(lex('  1.'), [tok(Kind.OrderedList(2), 0, 4)])
+    t.equal(lex('1.'), [tok(Kind.Text, 0, 2)])
     t.equal(lex('a1.'), [tok(Kind.Text, 0, 3)])
     t.equal(lex('a1. '), [tok(Kind.Text, 0, 4)])
+    t.equal(lex('1.a'), [tok(Kind.Text, 0, 3)])
+    t.equal(lex('1.0'), [tok(Kind.Text, 0, 3)])
   }
 
   t.test('Parentheses') fn (t) {
@@ -236,7 +239,7 @@ fn pub tests(t: mut Tests) {
 
     t.equal(
       lex(">>>\n-"),
-      [tok(Kind.Quote(3), 0, 3), tok(Kind.UnorderedList(0), 4, 1)]
+      [tok(Kind.Quote(3), 0, 3), tok(Kind.Text, 4, 1)]
     )
   }
 

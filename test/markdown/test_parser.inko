@@ -661,7 +661,8 @@ c
 
   t.test('Text followed by a block element') fn (t) {
     t.equal(parse("a\n- b"), Result.Ok([p([text('a')]), ul([li([text('b')])])]))
-    t.equal(parse("a\n1.b"), Result.Ok([p([text('a')]), ol([li([text('b')])])]))
+    t.equal(parse("a\n1.b"), Result.Ok([p([text('a'), text("\n"), text('1.b')])]))
+    t.equal(parse("a\n1. b"), Result.Ok([p([text('a')]), ol([li([text('b')])])]))
     t.equal(parse("a\n- b"), Result.Ok([p([text('a')]), ul([li([text('b')])])]))
     t.equal(parse("a\n# b"), Result.Ok([p([text('a')]), h(1, [text('b')])]))
     t.equal(parse("a\n---"), Result.Ok([p([text('a')]), hr]))
