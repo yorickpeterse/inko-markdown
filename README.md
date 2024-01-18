@@ -331,7 +331,7 @@ doc.to_pretty_string
 
 ## TableOfContents
 
-The filter `markdown.html.TableOfContents` adds `id` attributes to all headers
+The filter `markdown.html.TableOfContents` adds `id` attributes to all headings
 based on their content, and optionally replaces custom blocks with the `toc`
 tag with a table of contents. For example, consider the following Markdown
 document:
@@ -376,13 +376,28 @@ into the following:
 <h1 id="manually">Manually</h1>
 ```
 
+Headings can be ignored by wrapping the contents in an inline span with the
+class "toc-ignore" like so:
+
+```markdown
+# [Table of contents]{toc-ignore}
+```
+
+For this to work, the span must be the outer-most and first element in the
+heading, i.e. this won't work:
+
+```markdown
+# _test_ [Table of contents]{toc-ignore}
+```
+
 The following fields can be set to customize the process of generating the table
 of contents:
 
-| Option    | Default | Description
-|:----------|:--------|:-------------------------------------------------------
-| `class`   | `toc`   | The `class` value of the container.
-| `maximum` | `6`     | The maximum header level to include.
+| Option         | Default      | Description
+|:---------------|:-------------|:----------------------------------------------
+| `class`        | `toc`        | The `class` value of the container.
+| `ignore_class` | `toc-ignore` | The class used to ignore headings in the table
+| `maximum`      | `6`          | The maximum heading level to include.
 
 # License
 

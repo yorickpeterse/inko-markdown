@@ -247,6 +247,8 @@ fn pub tests(t: mut Tests) {
     t.equal(
       filter(
         '
+# [This should be ignored]{toc-ignore}
+
 ::: toc
 :::
 
@@ -260,6 +262,7 @@ fn pub tests(t: mut Tests) {
         TableOfContents.new
       ),
       '\
+<h1 id="this-should-be-ignored">This should be ignored</h1>
 <ul class="toc">
   <li>
     <a href="#installation">Installation</a>

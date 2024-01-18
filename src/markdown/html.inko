@@ -10,7 +10,7 @@ let SPACE = 32
 let HYPHEN = 45
 
 # A table that maps bytes (based on their index) to a boolean that states if the
-# byte can be included in URLs (and thus header IDs). Bytes are used as an
+# byte can be included in URLs (and thus heading IDs). Bytes are used as an
 # index, and if the value is `true`, it's safe to include the byte.
 let URL_SAFE = [
   false, false, false, false, false, false, false, false, false, false, false,
@@ -225,30 +225,30 @@ trait pub Filter {
   # Transforms the HTML document.
   #
   # How or what exactly this method does is up to the type that implements this
-  # trait. Examples include adding IDs to headers, generating a table of
+  # trait. Examples include adding IDs to headings, generating a table of
   # contents, or replacing one element with another.
   fn pub mut run(document: mut html.Document)
 }
 
-class Header {
-  let @nodes: Array[Header]
-  let @parent: Option[mut Header]
+class Heading {
+  let @nodes: Array[Heading]
+  let @parent: Option[mut Heading]
   let @level: Int
   let @id: String
   let @text: String
 
-  fn mut add(header: Header) {
-    header.parent = Option.Some(self)
-    @nodes.push(header)
+  fn mut add(heading: Heading) {
+    heading.parent = Option.Some(self)
+    @nodes.push(heading)
   }
 }
 
-class HeaderTree {
-  let @current: Option[mut Header]
-  let @roots: Array[Header]
+class HeadingTree {
+  let @current: Option[mut Heading]
+  let @roots: Array[Heading]
 
   fn mut add(level: Int, id: String, text: String) {
-    let header = Header {
+    let heading = Heading {
       @level = level,
       @id = id,
       @text = text,
@@ -258,12 +258,12 @@ class HeaderTree {
 
     match @current {
       case Some(val) if level == val.level -> match val.parent {
-        case Some(parent) -> parent.add(header)
-        case _ -> add_root(header)
+        case Some(parent) -> parent.add(heading)
+        case _ -> add_root(heading)
       }
       case Some(val) if level > val.level -> {
-        @current = Option.Some(mut header)
-        val.add(header)
+        @current = Option.Some(mut heading)
+        val.add(heading)
       }
       case Some(val) if level < val.level -> {
         let mut target = val.parent
@@ -276,17 +276,17 @@ class HeaderTree {
         }
 
         match target {
-          case Some(t) -> t.add(header)
-          case _ -> add_root(header)
+          case Some(t) -> t.add(heading)
+          case _ -> add_root(heading)
         }
       }
-      case _ -> add_root(header)
+      case _ -> add_root(heading)
     }
   }
 
-  fn mut add_root(header: Header) {
-    @current = Option.Some(mut header)
-    @roots.push(header)
+  fn mut add_root(heading: Heading) {
+    @current = Option.Some(mut heading)
+    @roots.push(heading)
   }
 
   fn to_html -> html.Element {
@@ -296,25 +296,25 @@ class HeaderTree {
     root
   }
 
-  fn visit(header: ref Header, element: mut html.Element) {
+  fn visit(heading: ref Heading, element: mut html.Element) {
     let li = element.li
 
-    li.a.attr('href', "#{header.id}").text(header.text)
+    li.a.attr('href', "#{heading.id}").text(heading.text)
 
-    if header.nodes.empty? { return }
+    if heading.nodes.empty? { return }
 
     li.ul.with fn (ul) {
-      header.nodes.iter.each fn (h) { visit(h, ul) }
+      heading.nodes.iter.each fn (h) { visit(h, ul) }
     }
   }
 }
 
-# A filter that adds IDs to headers, and optionally adds a table of contents.
+# A filter that adds IDs to headings, and optionally adds a table of contents.
 class pub TableOfContents {
   let @ids: Map[String, Int]
-  let @tree: HeaderTree
+  let @tree: HeadingTree
 
-  # The maximum header level to include.
+  # The maximum heading level to include.
   #
   # For example, if this value is set to `3`, then `h4`, `h5` and `h6` elements
   # are excluded from the table of contents.
@@ -323,20 +323,25 @@ class pub TableOfContents {
   # The class to apply to the table of contents container.
   let pub @class: String
 
+  # The class used to mark headings such that they're not included in the table
+  # of contents.
+  let pub @ignore_class: String
+
   fn pub static new -> TableOfContents {
     TableOfContents {
       @ids = Map.new,
-      @tree = HeaderTree { @current = Option.None, @roots = [] },
+      @tree = HeadingTree { @current = Option.None, @roots = [] },
       @maximum = 6,
       @class = 'toc',
+      @ignore_class = 'toc-ignore',
     }
   }
 
-  fn mut track_headers(document: mut html.Document) {
-    document.nodes.iter_mut.each fn (node) { header(node) }
+  fn mut track_headings(document: mut html.Document) {
+    document.nodes.iter_mut.each fn (node) { heading(node) }
   }
 
-  fn mut header(node: mut html.Node) {
+  fn mut heading(node: mut html.Node) {
     match node {
       case Element(el)
         if el.name.size == 2
@@ -350,13 +355,36 @@ class pub TableOfContents {
 
             el.attr('id', id)
 
-            if level <= @maximum { @tree.add(level, id, text) }
+            if level <= @maximum and ignore?(el).false? {
+              @tree.add(level, id, text)
+            }
           }
         }
       }
-      case Element(el) -> el.nodes.iter_mut.each fn (n) { header(n) }
+      case Element(el) -> el.nodes.iter_mut.each fn (n) { heading(n) }
       case Text(_) -> {}
     }
+  }
+
+  fn mut ignore?(heading: mut html.Element) -> Bool {
+    match heading.nodes.opt(0) {
+      case Some(Element({ @name = 'span', @attributes = attr })) -> {
+        match attr.opt('class') {
+          case Some(v) if v == @ignore_class -> {}
+          case _ -> return false
+        }
+      }
+      case _ -> return false
+    }
+
+    # We remove the span so it doesn't "leak" into the final document, as it
+    # doesn't have a meaningful purpose there.
+    match heading.nodes.remove_at(0) {
+      case Element({ @nodes = nodes }) -> heading.nodes = nodes
+      case _ -> {}
+    }
+
+    true
   }
 
   fn mut text_and_id(element: ref html.Element) -> (String, String) {
@@ -449,7 +477,7 @@ class pub TableOfContents {
 
 impl Filter for TableOfContents {
   fn pub mut run(document: mut html.Document) {
-    track_headers(document)
+    track_headings(document)
     replace_markers(document)
   }
 }
