@@ -153,6 +153,10 @@ fn pub tests(t: mut Tests) {
     t.equal(parse('a*'), Result.Ok([p([text('a*')])]))
     t.equal(parse('*a'), Result.Ok([p([text('*'), text('a')])]))
     t.equal(parse('*a*'), Result.Ok([p([text('*'), text('a*')])]))
+    t.equal(
+      parse('a): b'),
+      Result.Ok([p([text('a'), text(')'), text(':'), text(' b')])])
+    )
   }
 
   t.test('Strong text') fn (t) {

@@ -82,6 +82,10 @@ class Parser[T: Bytes] {
     next_token
   }
 
+  fn mut skip_whitespace {
+    @lexer.advance_while_spaces
+  }
+
   fn mut peek -> Option[ref Kind] {
     match @peeked {
       case Some(Some({ @kind = kind })) -> Option.Some(kind)
@@ -437,6 +441,7 @@ class Parser[T: Bytes] {
     match peek {
       case Some(Colon) -> {
         skip_token
+        skip_whitespace
 
         let val = try inline(Inline.Footnote)
 

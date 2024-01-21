@@ -494,7 +494,7 @@ impl Iter[Token] for Lexer {
             tok
           }
         }
-        case _ -> single_without_spaces(Kind.Colon)
+        case _ -> single(Kind.Colon)
       }
       case Some(UNDERSCORE) -> single(Kind.Underscore)
       case Some(LBRACK) -> match peek {
