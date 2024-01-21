@@ -8,16 +8,6 @@
 
 - [f459582](https://github.com/yorickpeterse/inko-markdown/commit/f459582820166404b164755abbb6fc2cfc038dfa): Add support for ignoring headings the TOCs
 
-## 0.10.0 (2024-01-21)
-
-### Added
-
-- [f459582](https://github.com/yorickpeterse/inko-markdown/commit/f459582820166404b164755abbb6fc2cfc038dfa): Add support for ignoring headings the TOCs
-
-### Fixed
-
-- [4de3278](https://github.com/yorickpeterse/inko-markdown/commit/4de3278dd1789581aa530307b0b1f565cdcc6e89): Fix parsing of whitespace around colons
-
 ## 0.9.0 (2024-01-17)
 
 ### Fixed
