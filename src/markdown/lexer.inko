@@ -42,7 +42,8 @@ class enum Kind {
   case Colon
   case EmptyLine
   case FootnoteOpen
-  case Grave(Int)
+  case CodeSpan
+  case CodeBlock(String)
   case Greater
   case Hash(Int)
   case ImageOpen
@@ -77,8 +78,8 @@ class enum Kind {
       case CurlyClose -> 'a closing curly bracket ("}")'
       case Colon -> 'a colon (":")'
       case EmptyLine -> 'an empty line'
-      case Grave(1) -> 'a grave accent ("`")'
-      case Grave(n) -> "{n} grave (\"`\") accents"
+      case CodeSpan -> "a code span opening/closing tag"
+      case CodeBlock(_) -> "a code block opening/closing tag"
       case Greater -> 'a greater-than sign (">")'
       case UnorderedList(_) -> 'an unordered list marker ("-")'
       case Indent -> 'indentation'
@@ -119,7 +120,8 @@ impl Equal[ref Kind] for Kind {
       case (CurlyClose, CurlyClose) -> true
       case (Colon, Colon) -> true
       case (EmptyLine, EmptyLine) -> true
-      case (Grave(a), Grave(b)) -> a == b
+      case (CodeSpan, CodeSpan) -> true
+      case (CodeBlock(a), CodeBlock(b)) -> a == b
       case (Greater, Greater) -> true
       case (UnorderedList(a), UnorderedList(b)) -> a == b
       case (Indent, Indent) -> true
@@ -154,7 +156,8 @@ impl Format for Kind {
     match self {
       case Block(n) -> formatter.tuple('Block').field(n).finish
       case Strong -> formatter.tuple('Strong').finish
-      case Grave(n) -> formatter.tuple('Grave').field(n).finish
+      case CodeSpan -> formatter.tuple('CodeSpan').finish
+      case CodeBlock(n) -> formatter.tuple('CodeBlock').field(n).finish
       case BracketClose -> formatter.tuple('BracketClose').finish
       case BracketOpen -> formatter.tuple('BracketOpen').finish
       case CurlyOpen -> formatter.tuple('CurlyOpen').finish
@@ -307,6 +310,20 @@ class Lexer[T: Bytes] {
     @offset - start
   }
 
+  fn mut advance_until_eol -> Int {
+    let start = @offset
+
+    loop {
+      match current {
+        case Some(LF) -> break
+        case Some(_) -> advance(1)
+        case _ -> break
+      }
+    }
+
+    @offset - start
+  }
+
   fn mut advance_if_space {
     match current {
       case Some(SPACE or CR or TAB) -> advance(1)
@@ -321,13 +338,17 @@ class Lexer[T: Bytes] {
     }
   }
 
-  fn mut advance_while(byte: Int) {
+  fn mut advance_while(byte: Int) -> Int {
+    let start = @offset
+
     loop {
       match current {
         case Some(val) if val == byte -> advance(1)
         case _ -> break
       }
     }
+
+    @offset - start
   }
 
   fn mut advance_while_text {
@@ -429,6 +450,46 @@ class Lexer[T: Bytes] {
     }
 
     token(Kind.Comment, start)
+  }
+
+  fn mut code -> Token {
+    let open = advance_while(GRAVE)
+    let block = open >= 3
+    let info = if block {
+      let start = @offset
+      let size = advance_until_eol
+      let info = @input.slice(start, size).into_string
+
+      advance_if_newline
+      info
+    } else {
+      ''
+    }
+
+    let start = @offset
+    let mut size = 0
+
+    # Everything inside the code span/block is treated as literal text. We do
+    # this at the lexer level as handling this at the parser level is much more
+    # complicated.
+    loop {
+      match current {
+        case Some(GRAVE) -> {
+          let close = advance_while(GRAVE)
+
+          if close == open { break } else { size += close }
+        }
+        case Some(_) -> {
+          advance(1)
+          size += 1
+        }
+        case _ -> break
+      }
+    }
+
+    let kind = if block { Kind.CodeBlock(info) } else { Kind.CodeSpan }
+
+    Token { @kind = kind, @offset = start, @size = size }
   }
 
   fn token(kind: Kind, start: Int) -> Token {
@@ -574,11 +635,7 @@ impl Iter[Token] for Lexer {
           case _ -> token(Kind.Text, start)
         }
       }
-      case Some(GRAVE) -> {
-        advance(1)
-        advance_while(GRAVE)
-        token(Kind.Grave(@offset - start), start)
-      }
+      case Some(GRAVE) -> code
       case Some(HASH) -> {
         advance(1)
 

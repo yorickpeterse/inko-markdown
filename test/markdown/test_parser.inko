@@ -206,10 +206,9 @@ fn pub tests(t: mut Tests) {
     t.equal(parse("`a\nb`"), Result.Ok([p([cspan("a\nb")])]))
     t.equal(parse("``\nb``"), Result.Ok([p([cspan("\nb")])]))
     t.equal(parse('`\\`'), Result.Ok([p([cspan('\\')])]))
-
-    t.true(parse('``').error?)
-    t.true(parse('a`b').error?)
-    t.true(parse('` `a``').error?)
+    t.equal(parse('``'), Result.Ok([p([cspan('')])]))
+    t.equal(parse('a`b'), Result.Ok([p([text('a'), cspan('b')])]))
+    t.equal(parse('` `a``'), Result.Ok([p([cspan(' '), text('a'), cspan('')])]))
   }
 
   t.test('Code blocks') fn (t) {
@@ -230,7 +229,56 @@ fn pub tests(t: mut Tests) {
       Result.Ok([p([text('a')]), cblock(Option.None, "foo\n")])
     )
 
-    t.true(parse("``````").error?)
+    t.equal(
+      parse("```\n# A\n# B\nfoo\n```"),
+      Result.Ok([cblock(Option.None, "# A\n# B\nfoo\n")])
+    )
+
+    t.equal(
+      parse("```\n>>> A\n>>> B\nfoo\n```"),
+      Result.Ok([cblock(Option.None, ">>> A\n>>> B\nfoo\n")])
+    )
+
+    t.equal(
+      parse("```\n- A\n- B\nfoo\n```"),
+      Result.Ok([cblock(Option.None, "- A\n- B\nfoo\n")])
+    )
+
+    t.equal(
+      parse("```\n::: A\n::: B\nfoo\n```"),
+      Result.Ok([cblock(Option.None, "::: A\n::: B\nfoo\n")])
+    )
+
+    t.equal(
+      parse("```\n| A\n| B\nfoo\n```"),
+      Result.Ok([cblock(Option.None, "| A\n| B\nfoo\n")])
+    )
+
+    t.equal(
+      parse("```\n|= A\n|= B\nfoo\n```"),
+      Result.Ok([cblock(Option.None, "|= A\n|= B\nfoo\n")])
+    )
+
+    t.equal(
+      parse("```\n|+ A\n|+ B\nfoo\n```"),
+      Result.Ok([cblock(Option.None, "|+ A\n|+ B\nfoo\n")])
+    )
+
+    t.equal(
+      parse("```\n|- A\n|- B\nfoo\n```"),
+      Result.Ok([cblock(Option.None, "|- A\n|- B\nfoo\n")])
+    )
+
+    t.equal(
+      parse("```\n[foo]: bar\nfoo\n```"),
+      Result.Ok([cblock(Option.None, "[foo]: bar\nfoo\n")])
+    )
+
+    t.equal(parse("``````"), Result.Ok([cblock(Option.None, '')]))
+    t.equal(
+      parse("```\n**test**\n```"),
+      Result.Ok([cblock(Option.None, "**test**\n")])
+    )
   }
 
   t.test('Auto links') fn (t) {

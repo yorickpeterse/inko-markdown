@@ -20,10 +20,10 @@ fn pub tests(t: mut Tests) {
     )
 
     t.equal(lex('abc!'), [tok(Kind.Text, 0, 4)])
-    t.equal(lex('`abc'), [tok(Kind.Grave(1), 0, 1), tok(Kind.Text, 1, 3)])
-    t.equal(lex('abc`'), [tok(Kind.Text, 0, 3), tok(Kind.Grave(1), 3, 1)])
-    t.equal(lex('``abc'), [tok(Kind.Grave(2), 0, 2), tok(Kind.Text, 2, 3)])
-    t.equal(lex('abc``'), [tok(Kind.Text, 0, 3), tok(Kind.Grave(2), 3, 2)])
+    t.equal(lex('`abc'), [tok(Kind.CodeSpan, 1, 3)])
+    t.equal(lex('abc`'), [tok(Kind.Text, 0, 3), tok(Kind.CodeSpan, 4, 0)])
+    t.equal(lex('``abc'), [tok(Kind.CodeSpan, 2, 3)])
+    t.equal(lex('abc``'), [tok(Kind.Text, 0, 3), tok(Kind.CodeSpan, 5, 0)])
     t.equal(lex('<abc'), [tok(Kind.Less, 0, 1), tok(Kind.Text, 1, 3)])
     t.equal(lex('abc<'), [tok(Kind.Text, 0, 3), tok(Kind.Less, 3, 1)])
     t.equal(lex('  >'), [tok(Kind.Indent, 0, 2), tok(Kind.Greater, 2, 1)])
@@ -318,6 +318,49 @@ fn pub tests(t: mut Tests) {
     t.equal(
       lex('<!-'),
       [tok(Kind.Less, 0, 1), tok(Kind.Text, 1, 1), tok(Kind.Text, 2, 1)]
+    )
+  }
+
+  t.test('Code blocks') fn (t) {
+    t.equal(
+      lex('`a`'),
+      [tok(Kind.CodeSpan, 1, 1),]
+    )
+
+    t.equal(
+      lex('``a``'),
+      [tok(Kind.CodeSpan, 2, 1)]
+    )
+
+    t.equal(
+      lex(
+        '\
+```test
+# A
+# B
+foo
+```\
+        '
+      ),
+      [tok(Kind.CodeBlock("test"), 8, 12)]
+    )
+
+    t.equal(
+      lex(
+        '\
+```
+# A
+# B
+foo
+```\
+        '
+      ),
+      [tok(Kind.CodeBlock(''), 4, 12)]
+    )
+
+    t.equal(
+      lex("```\nfoo``bar```"),
+      [tok(Kind.CodeBlock(''), 4, 8)]
     )
   }
 }

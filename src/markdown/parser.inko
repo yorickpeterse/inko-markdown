@@ -120,7 +120,7 @@ class Parser[T: Bytes] {
 
     loop {
       match peek {
-        case Some(Grave(n)) if n >= 3 -> nodes.push(try code_block)
+        case Some(CodeBlock(_)) -> nodes.push(code_block)
         case Some(Hash(n)) -> nodes.push(try heading)
         case Some(EmptyLine) -> skip_token
         case Some(UnorderedList(n)) -> nodes.push(try unordered_list(indent: n))
@@ -309,7 +309,7 @@ class Parser[T: Bytes] {
           case Subscript -> break
           case _ -> nodes.push(try subscript)
         }
-        case Some(Grave(1 or 2)) -> nodes.push(try code_block)
+        case Some(CodeSpan) -> nodes.push(code_span)
         case Some(Less) -> nodes.push(try auto_link)
         case Some(BracketOpen) -> nodes.push(try brackets)
         case Some(ImageOpen) -> nodes.push(try image)
@@ -490,43 +490,21 @@ class Parser[T: Bytes] {
     Result.Ok(buffer.into_string)
   }
 
-  fn mut code_block -> Result[Node, Error] {
-    let open = match next_token {
-      case Some({ @kind = Grave(n) }) -> n
+  fn mut code_block -> Node {
+    match next_token {
+      case Some({ @kind = CodeBlock(info), @size = size, @offset = start }) -> {
+        let info = if info.size > 0 { Option.Some(info) } else { Option.None }
+
+        Node.CodeBlock(info, slice(start, size))
+      }
       case _ -> panic('unreachable')
     }
+  }
 
-    let mut info = Option.None
-    let block = open >= 3
+  fn mut code_span -> Node {
+    let tok = next_token.unwrap
 
-    if block {
-      match peek {
-        case Some(Text) -> info = Option.Some(text_line)
-        case Some(SoftBreak) -> skip_token
-        case _ -> {}
-      }
-    }
-
-    let mut start = @lexer.offset
-    let mut size = 0
-
-    loop {
-      match peek {
-        case Some(Grave(close)) -> {
-          skip_token
-
-          if open != close {
-            size += close
-          } else if block {
-            return Result.Ok(Node.CodeBlock(info, slice(start, size)))
-          } else {
-            return Result.Ok(Node.CodeSpan(slice(start, size)))
-          }
-        }
-        case Some(_) -> size += next_token.unwrap.size
-        case _ -> try expect(Kind.Grave(open))
-      }
-    }
+    Node.CodeSpan(slice(tok.offset, tok.size))
   }
 
   fn mut heading -> Result[Node, Error] {
