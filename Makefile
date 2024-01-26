@@ -10,7 +10,7 @@ release/commit: .check-version
 	git push origin "$$(git rev-parse --abbrev-ref HEAD)"
 
 release/tag: .check-version
-	git tag -s -a -m "Release v${VERSION}" "v${VERSION}"
+	git tag -a -m "Release v${VERSION}" "v${VERSION}"
 	git push origin "v${VERSION}"
 
 release/update-readme: .check-version
