@@ -148,6 +148,9 @@ class pub enum Node {
   # The `String` argument is the text value.
   case Text(String)
 
+  # An automatic link without any child nodes.
+  case AutoLink(String)
+
   # A link with an optional body.
   case Link(Link, Array[Node])
 
@@ -215,6 +218,7 @@ impl Equal[ref Node] for Node {
       case (CodeSpan(a), CodeSpan(b)) -> a == b
       case (CodeBlock(a1, a2), CodeBlock(b1, b2)) -> a1 == b1 and a2 == b2
       case (Text(a), Text(b)) -> a == b
+      case (AutoLink(a), AutoLink(b)) -> a == b
       case (Link(a1, a2), Link(b1, b2)) -> a1 == b1 and a2 == b2
       case (Image(a1, a2), Image(b1, b2)) -> a1 == b1 and a2 == b2
       case (Heading(a1, a2), Heading(b1, b2)) -> a1 == b1 and a2 == b2
@@ -255,6 +259,7 @@ impl Format for Node {
         formatter.tuple('CodeBlock').field(info).field(nodes).finish
       }
       case Text(v) -> formatter.tuple('Text').field(v).finish
+      case AutoLink(v) -> formatter.tuple('AutoLink').field(v).finish
       case Link(url, nodes) -> {
         formatter.tuple('Link').field(url).field(nodes).finish
       }

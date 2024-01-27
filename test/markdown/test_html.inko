@@ -53,7 +53,9 @@ fn pub tests(t: mut Tests) {
   t.test('Generator.generate with links') fn (t) {
     t.equal(gen('<foo>'), '<p><a href="foo">foo</a></p>')
     t.equal(gen('[**a**](b)'), '<p><a href="b"><strong>a</strong></a></p>')
+    t.equal(gen('[](b)'), '<p><a href="b"></a></p>')
     t.equal(gen('[**a**][b]'), '<p><a><strong>a</strong></a></p>')
+    t.equal(gen('[][b]'), '<p><a></a></p>')
     t.equal(
       gen("[**a**][b]\n[b]: foo"), '<p><a href="foo"><strong>a</strong></a></p>'
     )

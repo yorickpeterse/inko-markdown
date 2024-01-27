@@ -43,6 +43,10 @@ fn link(link: Link, children: Array[Node]) -> Node {
   Node.Link(link, children)
 }
 
+fn auto_link(url: String) -> Node {
+  Node.AutoLink(url)
+}
+
 fn img(link: Link, alt: String) -> Node {
   Node.Image(link, alt)
 }
@@ -282,11 +286,11 @@ fn pub tests(t: mut Tests) {
   }
 
   t.test('Auto links') fn (t) {
-    t.equal(parse('<>'), Result.Ok([p([link(Link.Direct(''), [])])]))
-    t.equal(parse('<foo>'), Result.Ok([p([link(Link.Direct('foo'), [])])]))
-    t.equal(parse('<a b>'), Result.Ok([p([link(Link.Direct('a b'), [])])]))
-    t.equal(parse('<a_(b)>'), Result.Ok([p([link(Link.Direct('a_(b)'), [])])]))
-    t.equal(parse('<*a*>'), Result.Ok([p([link(Link.Direct('*a*'), [])])]))
+    t.equal(parse('<>'), Result.Ok([p([auto_link('')])]))
+    t.equal(parse('<foo>'), Result.Ok([p([auto_link('foo')])]))
+    t.equal(parse('<a b>'), Result.Ok([p([auto_link('a b')])]))
+    t.equal(parse('<a_(b)>'), Result.Ok([p([auto_link('a_(b)')])]))
+    t.equal(parse('<*a*>'), Result.Ok([p([auto_link('*a*')])]))
   }
 
   t.test('Regular links') fn (t) {

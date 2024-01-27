@@ -103,7 +103,7 @@ class pub Generator {
         parent.pre.with fn (pre) { pre.code.with fn (code) { code.text(body) } }
       }
       case Text(text) -> parent.text(text)
-      case Link(Direct(url), nodes) if nodes.empty? -> {
+      case AutoLink(url) -> {
         parent.a.attr('href', url).with fn (el) { el.text(url) }
       }
       case Link(Direct(url), nodes) -> parent.a.attr('href', url).with fn (el) {

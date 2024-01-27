@@ -380,7 +380,7 @@ class Parser[T: Bytes] {
 
   fn mut auto_link -> Result[Node, Error] {
     skip_token
-    Result.Ok(Node.Link(Link.Direct(try text_until(Kind.Greater)), []))
+    Result.Ok(Node.AutoLink(try text_until(Kind.Greater)))
   }
 
   fn mut brackets -> Result[Node, Error] {
