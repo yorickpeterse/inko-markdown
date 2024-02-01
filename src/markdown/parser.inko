@@ -121,7 +121,7 @@ class Parser[T: Bytes] {
     loop {
       match peek {
         case Some(CodeBlock(_)) -> nodes.push(code_block)
-        case Some(Hash(n)) -> nodes.push(try heading)
+        case Some(Hash(_)) -> nodes.push(try heading)
         case Some(EmptyLine) -> skip_token
         case Some(UnorderedList(n)) -> nodes.push(try unordered_list(indent: n))
         case Some(OrderedList(n)) -> nodes.push(try ordered_list(indent: n))
@@ -384,7 +384,8 @@ class Parser[T: Bytes] {
   }
 
   fn mut brackets -> Result[Node, Error] {
-    let start_token = next_token.unwrap
+    next_token.unwrap
+
     let children = try inline(Inline.Brackets)
 
     try expect(Kind.BracketClose)
