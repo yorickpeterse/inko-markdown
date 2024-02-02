@@ -239,6 +239,9 @@ fn pub tests(t: mut Tests) {
 <h1 id="foo-2">foo</h1>\
       '
     )
+
+    t.equal(filter('# A 1.2', TableOfContents.new), '<h1 id="a-1-2">A 1.2</h1>')
+    t.equal(filter('# A 1,2', TableOfContents.new), '<h1 id="a-12">A 1,2</h1>')
   }
 
   t.test('TableOfContents.run with a marker and without headers') fn (t) {

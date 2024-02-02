@@ -8,6 +8,7 @@ let LF = 10
 let CR = 13
 let SPACE = 32
 let HYPHEN = 45
+let DOT = 46
 
 # A table that maps bytes (based on their index) to a boolean that states if the
 # byte can be included in URLs (and thus heading IDs). Bytes are used as an
@@ -407,6 +408,7 @@ class pub TableOfContents {
               # If the byte is in the ASCII range A-Z, lowercase it; otherwise
               # we keep it as-is.
               case Some(v) if v >= 65 and v <= 90 -> id.push(v + 32)
+              case Some(DOT) -> id.push(HYPHEN)
               case Some(v) if URL_SAFE.get(v) -> id.push(v)
               case Some(TAB or LF or CR or SPACE) -> {
                 if id.last.unwrap_or(-1) != HYPHEN { id.push(HYPHEN) }
