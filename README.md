@@ -277,7 +277,7 @@ in `<sup></sup>foo<sup></sup>`.
 
 # Requirements
 
-- Inko 0.13.2 or newer
+- Inko 0.15.0 or newer
 
 # Installation
 
@@ -291,8 +291,8 @@ inko pkg sync
 Hello world using inko-markdown:
 
 ```inko
-import markdown.Document
-import std.stdio.STDOUT
+import markdown (Document)
+import std.stdio (STDOUT)
 
 class async Main {
   fn async main {

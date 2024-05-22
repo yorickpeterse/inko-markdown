@@ -1,8 +1,8 @@
 # Lexical analysis of Markdown documents.
-import std.cmp.Equal
-import std.fmt.(Format, Formatter)
-import std.iter.Iter
-import std.string.Bytes
+import std.cmp (Equal)
+import std.fmt (Format, Formatter)
+import std.iter (Iter)
+import std.string (Bytes)
 
 let TAB = 9
 let LF = 10
@@ -70,7 +70,7 @@ class enum Kind {
 
   fn description -> String {
     match self {
-      case Block(n) -> "a block opening/closing tag (\"{':'.repeat(n)}\")"
+      case Block(n) -> 'a block opening/closing tag ("${':'.repeat(n)}")'
       case Strong -> 'a strong emphasis symbol ("*")'
       case BracketClose -> 'a closing bracket ("]")'
       case BracketOpen -> 'an opening bracket ("[")'
@@ -78,8 +78,8 @@ class enum Kind {
       case CurlyClose -> 'a closing curly bracket ("}")'
       case Colon -> 'a colon (":")'
       case EmptyLine -> 'an empty line'
-      case CodeSpan -> "a code span opening/closing tag"
-      case CodeBlock(_) -> "a code block opening/closing tag"
+      case CodeSpan -> 'a code span opening/closing tag'
+      case CodeBlock(_) -> 'a code block opening/closing tag'
       case Greater -> 'a greater-than sign (">")'
       case UnorderedList(_) -> 'an unordered list marker ("-")'
       case Indent -> 'indentation'
@@ -92,9 +92,9 @@ class enum Kind {
       case Underscore -> 'an underscore ("_")'
       case ImageOpen -> 'an image opening tag ("![")'
       case Hash(1) -> 'a hash sign ("#")'
-      case Hash(n) -> "{n} hash (\"#\") signs"
+      case Hash(n) -> '${n} hash ("#") signs'
       case FootnoteOpen -> 'a footnote opening tag ("[^")'
-      case Quote(n) -> "{n} blockquote (\">\") signs"
+      case Quote(n) -> '${n} blockquote (">") signs'
       case Reference -> 'a reference definition tag ("[...]:")'
       case ThematicBreak -> 'a thematic break tag ("---")'
       case Caret -> 'a caret ("^")'
@@ -227,7 +227,7 @@ class Lexer[T: Bytes] {
   let @line_start: Bool
 
   fn static new(input: T) -> Lexer[T] {
-    Lexer { @input = input, @offset = 0, @line_start = true }
+    Lexer(input: input, offset: 0, line_start: true)
   }
 
   fn current -> Option[Int] {
@@ -356,29 +356,36 @@ class Lexer[T: Bytes] {
 
     loop {
       match current {
-        case Some(
-          BACKSLASH
-            or CARET
-            or GRAVE
-            or GT
-            or LBRACK
-            or LCURLY
-            or LF
-            or LPAR
-            or LT
-            or RBRACK
-            or RCURLY
-            or RPAR
-            or TILDE
-            or UNDERSCORE
-        ) -> break
-        case Some(ASTERISK) -> match peek {
-          case Some(ASTERISK) -> break
-          case _ -> advance(1)
+        case
+          Some(
+            BACKSLASH
+              or CARET
+              or GRAVE
+              or GT
+              or LBRACK
+              or LCURLY
+              or LF
+              or LPAR
+              or LT
+              or RBRACK
+              or RCURLY
+              or RPAR
+              or TILDE
+              or UNDERSCORE,
+          ) -> {
+          break
         }
-        case Some(EXCL) -> match peek {
-          case Some(LBRACK) -> break
-          case _ -> advance(1)
+        case Some(ASTERISK) -> {
+          match peek {
+            case Some(ASTERISK) -> break
+            case _ -> advance(1)
+          }
+        }
+        case Some(EXCL) -> {
+          match peek {
+            case Some(LBRACK) -> break
+            case _ -> advance(1)
+          }
         }
         case Some(_) -> advance(1)
         case None -> break
@@ -437,10 +444,11 @@ class Lexer[T: Bytes] {
     @offset += 4
 
     while @offset < @input.size {
-      if @offset + 3 < @input.size
-        and @input.byte(@offset) == HYPHEN
-        and @input.byte(@offset + 1) == HYPHEN
-        and @input.byte(@offset + 2) == GT
+      if
+        @offset + 3 < @input.size
+          and @input.byte(@offset) == HYPHEN
+          and @input.byte(@offset + 1) == HYPHEN
+          and @input.byte(@offset + 2) == GT
       {
         @offset += 3
         break
@@ -489,11 +497,11 @@ class Lexer[T: Bytes] {
 
     let kind = if block { Kind.CodeBlock(info) } else { Kind.CodeSpan }
 
-    Token { @kind = kind, @offset = start, @size = size }
+    Token(kind: kind, offset: start, size: size)
   }
 
   fn token(kind: Kind, start: Int) -> Token {
-    Token { @kind = kind, @offset = start, @size = @offset - start }
+    Token(kind: kind, offset: start, size: @offset - start)
   }
 }
 
@@ -501,91 +509,105 @@ impl Iter[Token] for Lexer {
   fn pub mut next -> Option[Token] {
     let start = @offset
     let token = match current {
-      case Some(ASTERISK) -> match peek {
-        case Some(ASTERISK) -> double(Kind.Strong)
-        case _ -> {
-          advance(1)
-          token(Kind.Text, start)
-        }
-      }
-      case Some(HYPHEN) if @line_start -> match peek {
-        case Some(HYPHEN) -> {
-          advance(1)
-
-          match peek {
-            case Some(HYPHEN) -> {
-              advance(2)
-
-              let token = token(Kind.ThematicBreak, start)
-
-              advance_if_newline
-              token
-            }
-            case _ -> token(Kind.Text, start)
-          }
-        }
-        case Some(SPACE) -> list(start, indent: 0, ordered: false)
-        case _ -> text(start)
-      }
-      case Some(ONE) if @line_start -> match peek_two {
-        case (Some(PERIOD), Some(SPACE)) -> {
-          list(start, indent: 0, ordered: true)
-        }
-        case _ -> text(start)
-      }
-      case Some(PIPE) if @line_start -> match peek {
-        case Some(EQ) -> double_without_spaces(Kind.TableHeader)
-        case Some(HYPHEN) -> double_without_spaces(Kind.TableRow)
-        case Some(PLUS) -> double_without_spaces(Kind.TableFooter)
-        case _ -> single_without_spaces(Kind.TableColumn)
-      }
-      case Some(COLON) -> match peek {
-        case Some(COLON) -> {
-          advance(1)
-          advance_while(COLON)
-
-          let size = @offset - start
-
-          if size <= 2 {
+      case Some(ASTERISK) -> {
+        match peek {
+          case Some(ASTERISK) -> double(Kind.Strong)
+          case _ -> {
+            advance(1)
             token(Kind.Text, start)
-          } else {
-            let tok = token(Kind.Block(size), start)
-
-            advance_while_spaces
-            tok
           }
         }
-        case _ -> single(Kind.Colon)
+      }
+      case Some(HYPHEN) if @line_start -> {
+        match peek {
+          case Some(HYPHEN) -> {
+            advance(1)
+
+            match peek {
+              case Some(HYPHEN) -> {
+                advance(2)
+
+                let token = token(Kind.ThematicBreak, start)
+
+                advance_if_newline
+                token
+              }
+              case _ -> token(Kind.Text, start)
+            }
+          }
+          case Some(SPACE) -> list(start, indent: 0, ordered: false)
+          case _ -> text(start)
+        }
+      }
+      case Some(ONE) if @line_start -> {
+        match peek_two {
+          case (Some(PERIOD), Some(SPACE)) -> {
+            list(start, indent: 0, ordered: true)
+          }
+          case _ -> text(start)
+        }
+      }
+      case Some(PIPE) if @line_start -> {
+        match peek {
+          case Some(EQ) -> double_without_spaces(Kind.TableHeader)
+          case Some(HYPHEN) -> double_without_spaces(Kind.TableRow)
+          case Some(PLUS) -> double_without_spaces(Kind.TableFooter)
+          case _ -> single_without_spaces(Kind.TableColumn)
+        }
+      }
+      case Some(COLON) -> {
+        match peek {
+          case Some(COLON) -> {
+            advance(1)
+            advance_while(COLON)
+
+            let size = @offset - start
+
+            if size <= 2 {
+              token(Kind.Text, start)
+            } else {
+              let tok = token(Kind.Block(size), start)
+
+              advance_while_spaces
+              tok
+            }
+          }
+          case _ -> single(Kind.Colon)
+        }
       }
       case Some(UNDERSCORE) -> single(Kind.Underscore)
-      case Some(LBRACK) -> match peek {
-        case Some(CARET) -> double(Kind.FootnoteOpen)
-        case _ -> {
-          let line_start = @line_start
+      case Some(LBRACK) -> {
+        match peek {
+          case Some(CARET) -> double(Kind.FootnoteOpen)
+          case _ -> {
+            let line_start = @line_start
 
-          advance(1)
+            advance(1)
 
-          let name_start = @offset
+            let name_start = @offset
 
-          advance_while_text
+            advance_while_text
 
-          match current {
-            case Some(RBRACK) -> match peek {
-              case Some(COLON) if line_start -> {
-                let token = token(Kind.Reference, name_start)
+            match current {
+              case Some(RBRACK) -> {
+                match peek {
+                  case Some(COLON) if line_start -> {
+                    let token = token(Kind.Reference, name_start)
 
-                advance(2)
-                advance_while_spaces
-                token
+                    advance(2)
+                    advance_while_spaces
+                    token
+                  }
+                  case _ -> {
+                    @offset = name_start
+                    token(Kind.BracketOpen, start)
+                  }
+                }
               }
               case _ -> {
                 @offset = name_start
                 token(Kind.BracketOpen, start)
               }
-            }
-            case _ -> {
-              @offset = name_start
-              token(Kind.BracketOpen, start)
             }
           }
         }
@@ -598,10 +620,11 @@ impl Iter[Token] for Lexer {
       case Some(LPAR) -> single(Kind.ParenOpen)
       case Some(RPAR) -> single(Kind.ParenClose)
       case Some(LT) -> {
-        if @offset + 3 < @input.size
-          and @input.byte(@offset + 1) == EXCL
-          and @input.byte(@offset + 2) == HYPHEN
-          and @input.byte(@offset + 3) == HYPHEN
+        if
+          @offset + 3 < @input.size
+            and @input.byte(@offset + 1) == EXCL
+            and @input.byte(@offset + 2) == HYPHEN
+            and @input.byte(@offset + 3) == HYPHEN
         {
           comment
         } else {
@@ -679,9 +702,11 @@ impl Iter[Token] for Lexer {
         # easier for the parser to build an AST.
         match current {
           case Some(HYPHEN) -> list(start, indent, ordered: false)
-          case Some(ONE) -> match peek {
-            case Some(PERIOD) -> list(start, indent, ordered: true)
-            case _ -> token(Kind.Indent, start)
+          case Some(ONE) -> {
+            match peek {
+              case Some(PERIOD) -> list(start, indent, ordered: true)
+              case _ -> token(Kind.Indent, start)
+            }
           }
           case _ -> token(Kind.Indent, start)
         }
@@ -690,25 +715,26 @@ impl Iter[Token] for Lexer {
         advance(1)
 
         match current {
-          case Some(
-            ASTERISK
-              or BACKSLASH
-              or CARET
-              or COLON
-              or EXCL
-              or GT
-              or HASH
-              or LBRACK
-              or LCURLY
-              or LPAR
-              or LT
-              or PIPE
-              or RBRACK
-              or RCURLY
-              or RPAR
-              or TILDE
-              or UNDERSCORE
-          ) -> {
+          case
+            Some(
+              ASTERISK
+                or BACKSLASH
+                or CARET
+                or COLON
+                or EXCL
+                or GT
+                or HASH
+                or LBRACK
+                or LCURLY
+                or LPAR
+                or LT
+                or PIPE
+                or RBRACK
+                or RCURLY
+                or RPAR
+                or TILDE
+                or UNDERSCORE,
+            ) -> {
             advance(1)
             token(Kind.Text, @offset - 1)
           }

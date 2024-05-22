@@ -1,20 +1,20 @@
-import markdown.Document
-import markdown.Node
-import markdown.html.(Filter, Generator, TableOfContents)
-import markdown.parser.Parser
-import std.test.Tests
+import markdown (Document)
+import markdown (Node)
+import markdown.html (Filter, Generator, TableOfContents)
+import markdown.parser (Parser)
+import std.test (Tests)
 
 fn gen(input: String) -> String {
   let doc = match Parser.new(input).parse {
     case Ok(doc) -> doc
-    case Error(err) -> panic("failed to parse `{input}`: {err}")
+    case Error(err) -> panic('failed to parse `${input}`: ${err}')
   }
 
   Generator.new(doc).generate.to_string
 }
 
 fn parse(input: String) -> Document {
-  Document.parse(input).unwrap
+  Document.parse(input).get
 }
 
 fn filter[T: mut + Filter](input: String, filter: T) -> String {
@@ -25,120 +25,123 @@ fn filter[T: mut + Filter](input: String, filter: T) -> String {
 }
 
 fn pub tests(t: mut Tests) {
-  t.test('Generator.generate with regular text') fn (t) {
+  t.test('Generator.generate with regular text', fn (t) {
     t.equal(gen('abc'), '<p>abc</p>')
-  }
+  })
 
-  t.test('Generator.generate with emphasis text') fn (t) {
+  t.test('Generator.generate with emphasis text', fn (t) {
     t.equal(gen('_abc_'), '<p><em>abc</em></p>')
-  }
+  })
 
-  t.test('Generator.generate with strong text') fn (t) {
+  t.test('Generator.generate with strong text', fn (t) {
     t.equal(gen('**abc**'), '<p><strong>abc</strong></p>')
-  }
+  })
 
-  t.test('Generator.generate with code spans') fn (t) {
+  t.test('Generator.generate with code spans', fn (t) {
     t.equal(gen('`abc`'), '<p><code>abc</code></p>')
     t.equal(gen('`<>`'), '<p><code>&lt;&gt;</code></p>')
-  }
+  })
 
-  t.test('Generator.generate with code blocks') fn (t) {
-    t.equal(gen("```\nfoo\n```"), "<pre><code>foo\n</code></pre>")
+  t.test('Generator.generate with code blocks', fn (t) {
+    t.equal(gen('```\nfoo\n```'), '<pre><code>foo\n</code></pre>')
     t.equal(
-      gen("```html\nfoo\n```"),
-      "<pre><code data-language=\"html\">foo\n</code></pre>"
+      gen('```html\nfoo\n```'),
+      '<pre><code data-language="html">foo\n</code></pre>',
     )
-  }
+  })
 
-  t.test('Generator.generate with links') fn (t) {
+  t.test('Generator.generate with links', fn (t) {
     t.equal(gen('<foo>'), '<p><a href="foo">foo</a></p>')
     t.equal(gen('[**a**](b)'), '<p><a href="b"><strong>a</strong></a></p>')
     t.equal(gen('[](b)'), '<p><a href="b"></a></p>')
     t.equal(gen('[**a**][b]'), '<p><a><strong>a</strong></a></p>')
     t.equal(gen('[][b]'), '<p><a></a></p>')
     t.equal(
-      gen("[**a**][b]\n[b]: foo"), '<p><a href="foo"><strong>a</strong></a></p>'
+      gen('[**a**][b]\n[b]: foo'),
+      '<p><a href="foo"><strong>a</strong></a></p>',
     )
-  }
+  })
 
-  t.test('Generator.generate with images') fn (t) {
+  t.test('Generator.generate with images', fn (t) {
     t.equal(gen('![a](b)'), '<p><img src="b" alt="a" /></p>')
     t.equal(gen('![a][b]'), '<p><img alt="a" /></p>')
-    t.equal(gen("![a][b]\n[b]: b"), '<p><img src="b" alt="a" /></p>')
-  }
+    t.equal(gen('![a][b]\n[b]: b'), '<p><img src="b" alt="a" /></p>')
+  })
 
-  t.test('Generator.generate with footnotes') fn (t) {
+  t.test('Generator.generate with footnotes', fn (t) {
     t.equal(gen('[^a]'), '<p></p>')
     t.equal(
-      gen("[^a]\n[^a]: foo"),
-      '\
-<p><a href="#footnote-1" class="footnote"><sup>1</sup></a></p>\
-<div class="footnotes">\
-  <ol><li id="footnote-1">foo</li></ol>\
-</div>\
-'
+      gen('[^a]\n[^a]: foo'),
+      '
+<p><a href="#footnote-1" class="footnote"><sup>1</sup></a></p>
+<div class="footnotes">
+<ol><li id="footnote-1">foo</li></ol>
+</div>
+      '
+        .trim
+        .replace('\n', ''),
     )
-  }
+  })
 
-  t.test('Generator.generate with disabling footnotes') fn (t) {
-    let doc = Parser.new("[^a]\n[^a]: foo").parse.unwrap
+  t.test('Generator.generate with disabling footnotes', fn (t) {
+    let doc = Parser.new('[^a]\n[^a]: foo').parse.get
     let gen = Generator.new(doc)
 
     gen.enable_footnotes = false
     t.equal(gen.generate.to_string, '<p></p>')
-  }
+  })
 
-  t.test('Generator.generate with lists') fn (t) {
+  t.test('Generator.generate with lists', fn (t) {
     t.equal(gen('- **a**'), '<ul><li><strong>a</strong></li></ul>')
     t.equal(gen('1. **a**'), '<ol><li><strong>a</strong></li></ol>')
-  }
+  })
 
-  t.test('Generator.generate with blockquotes') fn (t) {
-    t.equal(gen(">>>\na\n>>>"), '<blockquote><p>a</p></blockquote>')
-  }
+  t.test('Generator.generate with blockquotes', fn (t) {
+    t.equal(gen('>>>\na\n>>>'), '<blockquote><p>a</p></blockquote>')
+  })
 
-  t.test('Generator.generate with headings') fn (t) {
+  t.test('Generator.generate with headings', fn (t) {
     t.equal(gen('# a'), '<h1>a</h1>')
     t.equal(gen('## a'), '<h2>a</h2>')
     t.equal(gen('### a'), '<h3>a</h3>')
     t.equal(gen('#### a'), '<h4>a</h4>')
     t.equal(gen('##### a'), '<h5>a</h5>')
     t.equal(gen('###### a'), '<h6>a</h6>')
-  }
+  })
 
-  t.test('Generator.generate with superscripts and subscripts') fn (t) {
+  t.test('Generator.generate with superscripts and subscripts', fn (t) {
     t.equal(gen('^a^'), '<p><sup>a</sup></p>')
     t.equal(gen('~a~'), '<p><sub>a</sub></p>')
-  }
+  })
 
-  t.test('Generator.generate with custom blocks') fn (t) {
-    t.equal(gen(":::\nfoo\n:::"), '<div><p>foo</p></div>')
-    t.equal(gen("::: abc\nfoo\n:::"), '<div class="abc"><p>foo</p></div>')
-  }
+  t.test('Generator.generate with custom blocks', fn (t) {
+    t.equal(gen(':::\nfoo\n:::'), '<div><p>foo</p></div>')
+    t.equal(gen('::: abc\nfoo\n:::'), '<div class="abc"><p>foo</p></div>')
+  })
 
-  t.test('Generator.generate with custom spans') fn (t) {
+  t.test('Generator.generate with custom spans', fn (t) {
     t.equal(gen('[foo]{}'), '<p><span>foo</span></p>')
     t.equal(gen('[foo]{abc}'), '<p><span class="abc">foo</span></p>')
-  }
+  })
 
-  t.test('Generator.generate with thematic breaks') fn (t) {
+  t.test('Generator.generate with thematic breaks', fn (t) {
     t.equal(gen('---'), '<hr />')
-  }
+  })
 
-  t.test('Generator.generate with hard line breaks') fn (t) {
-    t.equal(gen("a\\\nb"), '<p>a<br />b</p>')
-  }
+  t.test('Generator.generate with hard line breaks', fn (t) {
+    t.equal(gen('a\\\nb'), '<p>a<br />b</p>')
+  })
 
-  t.test('Generator.generate with tables') fn (t) {
+  t.test('Generator.generate with tables', fn (t) {
     t.equal(
       gen(
         '
 |-
 | tb 1
 | tb 2
-        '
+        ',
       ),
-      '<table><tbody><tr><td>tb 1</td><td>tb 2</td></tr></tbody></table>'
+      '<table><tbody><tr><td>tb 1</td><td>tb 2</td></tr></tbody></table>',
     )
 
     t.equal(
@@ -147,9 +150,9 @@ fn pub tests(t: mut Tests) {
 |=
 | th 1
 | th 2
-        '
+        ',
       ),
-      '<table><thead><tr><th>th 1</th><th>th 2</th></tr></thead></table>'
+      '<table><thead><tr><th>th 1</th><th>th 2</th></tr></thead></table>',
     )
 
     t.equal(
@@ -161,14 +164,16 @@ fn pub tests(t: mut Tests) {
 |-
 | tb 1
 | tb 2
-        '
+        ',
       ),
-      '\
-<table>\
-  <thead><tr><th>th 1</th><th>th 2</th></tr></thead>\
-  <tbody><tr><td>tb 1</td><td>tb 2</td></tr></tbody>\
-</table>\
       '
+<table>
+<thead><tr><th>th 1</th><th>th 2</th></tr></thead>
+<tbody><tr><td>tb 1</td><td>tb 2</td></tr></tbody>
+</table>
+      '
+        .trim
+        .replace('\n', ''),
     )
 
     t.equal(
@@ -183,23 +188,25 @@ fn pub tests(t: mut Tests) {
 |+
 | tf 1
 | tf 2
-        '
+        ',
       ),
-      '\
-<table>\
-  <thead><tr><th>th 1</th><th>th 2</th></tr></thead>\
-  <tbody><tr><td>tb 1</td><td>tb 2</td></tr></tbody>\
-  <tfoot><tr><td>tf 1</td><td>tf 2</td></tr></tfoot>\
-</table>\
       '
+<table>
+<thead><tr><th>th 1</th><th>th 2</th></tr></thead>
+<tbody><tr><td>tb 1</td><td>tb 2</td></tr></tbody>
+<tfoot><tr><td>tf 1</td><td>tf 2</td></tr></tfoot>
+</table>
+      '
+        .trim
+        .replace('\n', ''),
     )
-  }
+  })
 
-  t.test('Generator.generate with comments') fn (t) {
+  t.test('Generator.generate with comments', fn (t) {
     t.equal(gen('<!-- a -->'), '')
-  }
+  })
 
-  t.test('TableOfContents.run adds IDs to headers') fn (t) {
+  t.test('TableOfContents.run adds IDs to headers', fn (t) {
     t.equal(filter('# Foo', TableOfContents.new), '<h1 id="foo">Foo</h1>')
     t.equal(filter('## Foo', TableOfContents.new), '<h2 id="foo">Foo</h2>')
     t.equal(filter('### Foo', TableOfContents.new), '<h3 id="foo">Foo</h3>')
@@ -207,48 +214,49 @@ fn pub tests(t: mut Tests) {
     t.equal(filter('##### Foo', TableOfContents.new), '<h5 id="foo">Foo</h5>')
     t.equal(filter('###### Foo', TableOfContents.new), '<h6 id="foo">Foo</h6>')
     t.equal(
-      filter("# Foo\nbar", TableOfContents.new),
-      "<h1 id=\"foo-bar\">Foo\nbar</h1>"
+      filter('# Foo\nbar', TableOfContents.new),
+      '<h1 id="foo-bar">Foo\nbar</h1>',
     )
 
     t.equal(
       filter('# Foo # bar', TableOfContents.new),
-      '<h1 id="foo-bar">Foo # bar</h1>'
+      '<h1 id="foo-bar">Foo # bar</h1>',
     )
 
     t.equal(
       filter('# Foo **bar _baz_**', TableOfContents.new),
-      '<h1 id="foo-bar-baz">Foo <strong>bar <em>baz</em></strong></h1>'
+      '<h1 id="foo-bar-baz">Foo <strong>bar <em>baz</em></strong></h1>',
     )
 
     t.equal(
       filter('# Foo 🫠 bar', TableOfContents.new),
-      '<h1 id="foo-🫠-bar">Foo 🫠 bar</h1>'
+      '<h1 id="foo-🫠-bar">Foo 🫠 bar</h1>',
     )
 
     t.equal(
-      filter("# foo\n\r\t bar", TableOfContents.new),
-      "<h1 id=\"foo-bar\">foo\nbar</h1>"
+      filter('# foo\n\r\t bar', TableOfContents.new),
+      '<h1 id="foo-bar">foo\nbar</h1>',
     )
 
     t.equal(
-      filter("# foo\n# foo\n# foo", TableOfContents.new),
-      '\
+      filter('# foo\n# foo\n# foo', TableOfContents.new),
+      '
 <h1 id="foo">foo</h1>
 <h1 id="foo-1">foo</h1>
-<h1 id="foo-2">foo</h1>\
+<h1 id="foo-2">foo</h1>
       '
+        .trim,
     )
 
     t.equal(filter('# A 1.2', TableOfContents.new), '<h1 id="a-1-2">A 1.2</h1>')
     t.equal(filter('# A 1,2', TableOfContents.new), '<h1 id="a-12">A 1,2</h1>')
-  }
+  })
 
-  t.test('TableOfContents.run with a marker and without headers') fn (t) {
-    t.equal(filter("::: toc\n:::", TableOfContents.new), '')
-  }
+  t.test('TableOfContents.run with a marker and without headers', fn (t) {
+    t.equal(filter('::: toc\n:::', TableOfContents.new), '')
+  })
 
-  t.test('TableOfContents.run replaces the marker with a table') fn (t) {
+  t.test('TableOfContents.run replaces the marker with a table', fn (t) {
     t.equal(
       filter(
         '
@@ -264,9 +272,9 @@ fn pub tests(t: mut Tests) {
 ## Windows
 # Manually
         ',
-        TableOfContents.new
+        TableOfContents.new,
       ),
-      '\
+      '
 <h1 id="this-should-be-ignored">This should be ignored</h1>
 <ul class="toc">
   <li>
@@ -289,12 +297,13 @@ fn pub tests(t: mut Tests) {
 <h3 id="alpine">Alpine</h3>
 <h3 id="ubuntu">Ubuntu</h3>
 <h2 id="windows">Windows</h2>
-<h1 id="manually">Manually</h1>\
+<h1 id="manually">Manually</h1>
       '
+        .trim,
     )
-  }
+  })
 
-  t.test('TableOfContents.run with a h2 as the root header') fn (t) {
+  t.test('TableOfContents.run with a h2 as the root header', fn (t) {
     t.equal(
       filter(
         '
@@ -305,9 +314,9 @@ fn pub tests(t: mut Tests) {
 ### Bar
 # Baz
         ',
-        TableOfContents.new
+        TableOfContents.new,
       ),
-      '\
+      '
 <ul class="toc">
   <li>
     <a href="#foo">Foo</a>
@@ -319,12 +328,13 @@ fn pub tests(t: mut Tests) {
 </ul>
 <h2 id="foo">Foo</h2>
 <h3 id="bar">Bar</h3>
-<h1 id="baz">Baz</h1>\
+<h1 id="baz">Baz</h1>
       '
+        .trim,
     )
-  }
+  })
 
-  t.test('TableOfContents.run with a custom maximum depth') fn (t) {
+  t.test('TableOfContents.run with a custom maximum depth', fn (t) {
     let toc = TableOfContents.new
 
     toc.maximum = 2
@@ -339,21 +349,22 @@ fn pub tests(t: mut Tests) {
 ### Bar
 # Baz
         ',
-        toc
+        toc,
       ),
-      '\
+      '
 <ul class="toc">
   <li><a href="#foo">Foo</a></li>
   <li><a href="#baz">Baz</a></li>
 </ul>
 <h2 id="foo">Foo</h2>
 <h3 id="bar">Bar</h3>
-<h1 id="baz">Baz</h1>\
+<h1 id="baz">Baz</h1>
       '
+        .trim,
     )
-  }
+  })
 
-  t.test('TableOfContents.run with a custom class') fn (t) {
+  t.test('TableOfContents.run with a custom class', fn (t) {
     let toc = TableOfContents.new
 
     toc.class = 'foo'
@@ -366,14 +377,15 @@ fn pub tests(t: mut Tests) {
 
 ## Foo
         ',
-        toc
+        toc,
       ),
-      '\
+      '
 <ul class="foo">
   <li><a href="#foo">Foo</a></li>
 </ul>
-<h2 id="foo">Foo</h2>\
+<h2 id="foo">Foo</h2>
       '
+        .trim,
     )
-  }
+  })
 }

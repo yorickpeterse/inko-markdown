@@ -1,7 +1,7 @@
 # HTML generation and processing.
 import builder.html
-import markdown.(Document, Node)
-import std.string.StringBuffer
+import markdown (Document, Node)
+import std.string (StringBuffer)
 
 let TAB = 9
 let LF = 10
@@ -18,34 +18,31 @@ let URL_SAFE = [
   false, false, false, false, false, false, false, false, false, false, false,
   false, false, false, false, false, false, false, false, false, false, false,
   false, false, false, false, false, false, false, false, false, false, false,
-  false, true,  true,  false, true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  false, false, false, false, false, false, false, true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  false, false, false, false, true,  false, true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  false, false, false, true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true
+  false, true, true, false, true, true, true, true, true, true, true, true,
+  true, true, false, false, false, false, false, false, false, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, false, false,
+  false, false, true, false, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, false, false, false, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true,
 ]
 
 # Generates an HTML document from a markup document.
 #
 # # Examples
 #
-#     import markdown.html.Generator
-#     import markdown.parser.Parser
+#     import markdown.html (Generator)
+#     import markdown.parser (Parser)
 #
 #     let doc = Parser.new('*hello*').parse.expect('the markup is invalid')
 #
@@ -61,16 +58,12 @@ class pub Generator {
 
   # Returns a new generator that will convert the given document to HTML.
   fn pub static new(document: ref Document) -> Generator {
-    let footnotes = document.footnotes.iter.reduce(Map.new) fn (map, entry) {
+    let footnotes = document.footnotes.iter.reduce(Map.new, fn (map, entry) {
       map.set(entry.key, map.size + 1)
       map
-    }
+    })
 
-    Generator {
-      @document = document,
-      @footnotes = footnotes,
-      @enable_footnotes = true,
-    }
+    Generator(document: document, footnotes: footnotes, enable_footnotes: true)
   }
 
   # Generates the HTML document.
@@ -84,121 +77,135 @@ class pub Generator {
     doc
   }
 
-  fn visit[P: html.Builder + mut](nodes: ref Array[Node], parent: mut P) {
-    nodes.iter.each fn (n) { visit_node(n, parent) }
+  fn visit[P: mut + html.Builder](nodes: ref Array[Node], parent: mut P) {
+    nodes.iter.each(fn (n) { visit_node(n, parent) })
   }
 
-  fn visit_node[P: html.Builder + mut](node: ref Node, parent: mut P) {
+  fn visit_node[P: mut + html.Builder](node: ref Node, parent: mut P) {
     match node {
       case Emphasis(nodes) -> {
-        parent.em.with fn (el) { visit(nodes, el) }
+        parent.em.with(fn (el) { visit(nodes, el) })
         nil
       }
-      case Paragraph(nodes) -> parent.p.with fn (el) { visit(nodes, el) }
-      case Strong(nodes) -> parent.strong.with fn (el) { visit(nodes, el) }
+      case Paragraph(nodes) -> parent.p.with(fn (el) { visit(nodes, el) })
+      case Strong(nodes) -> parent.strong.with(fn (el) { visit(nodes, el) })
       case CodeSpan(code) -> parent.code.text(code)
-      case CodeBlock(Some(lang), body) -> parent.pre.with fn (pre) {
-        pre.code.with fn (c) { c.attr('data-language', lang).text(body) }
+      case CodeBlock(Some(lang), body) -> {
+        parent.pre.with(fn (pre) {
+          pre.code.with(fn (c) { c.attr('data-language', lang).text(body) })
+        })
       }
       case CodeBlock(None, body) -> {
-        parent.pre.with fn (pre) { pre.code.with fn (code) { code.text(body) } }
+        parent.pre.with(fn (pre) {
+          pre.code.with(fn (code) { code.text(body) })
+        })
       }
       case Text(text) -> parent.text(text)
       case AutoLink(url) -> {
-        parent.a.attr('href', url).with fn (el) { el.text(url) }
+        parent.a.attr('href', url).with(fn (el) { el.text(url) })
       }
-      case Link(Direct(url), nodes) -> parent.a.attr('href', url).with fn (el) {
-        visit(nodes, el)
+      case Link(Direct(url), nodes) -> {
+        parent.a.attr('href', url).with(fn (el) { visit(nodes, el) })
       }
-      case Link(Reference(name), nodes) -> match @document.references.opt(name) {
-        case Some(url) -> {
-          parent.a.attr('href', url).with fn (a) { visit(nodes, a) }
+      case Link(Reference(name), nodes) -> {
+        match @document.references.opt(name) {
+          case Some(url) -> {
+            parent.a.attr('href', url).with(fn (a) { visit(nodes, a) })
+          }
+          case _ -> parent.a.with(fn (a) { visit(nodes, a) })
         }
-        case _ -> parent.a.with fn (a) { visit(nodes, a) }
       }
       case Image(Direct(url), alt) -> {
         parent.img.attr('src', url).attr('alt', alt)
       }
-      case Image(Reference(name), alt) -> match @document.references.opt(name) {
-        case Some(url) -> parent.img.attr('src', url).attr('alt', alt)
-        case _ -> parent.img.attr('alt', alt)
-      }
-      case Footnote(name) -> if @enable_footnotes {
-        match @footnotes.opt(name) {
-          case Some(id) -> {
-            parent
-            .a
-            .attr('href', "#footnote-{id}")
-            .attr('class', 'footnote')
-            .with fn (a) { a.sup.text(id.to_string) }
-
-            nil
-          }
-          case _ -> {}
+      case Image(Reference(name), alt) -> {
+        match @document.references.opt(name) {
+          case Some(url) -> parent.img.attr('src', url).attr('alt', alt)
+          case _ -> parent.img.attr('alt', alt)
         }
       }
-      case UnorderedList(items) -> parent.ul.with fn (el) { visit(items, el) }
-      case OrderedList(items) -> parent.ol.with fn (el) { visit(items, el) }
-      case ListItem(nodes) -> parent.li.with fn (el) { visit(nodes, el) }
-      case Quote(nodes) -> {
-        parent.blockquote.with fn (el) { visit(nodes, el) }
-      }
-      case Heading(1, nodes) -> parent.h1.with fn (el) { visit(nodes, el) }
-      case Heading(2, nodes) -> parent.h2.with fn (el) { visit(nodes, el) }
-      case Heading(3, nodes) -> parent.h3.with fn (el) { visit(nodes, el) }
-      case Heading(4, nodes) -> parent.h4.with fn (el) { visit(nodes, el) }
-      case Heading(5, nodes) -> parent.h5.with fn (el) { visit(nodes, el) }
-      case Heading(_, nodes) -> parent.h6.with fn (el) { visit(nodes, el) }
-      case Superscript(nodes) -> parent.sup.with fn (el) { visit(nodes, el) }
-      case Subscript(nodes) -> parent.sub.with fn (el) { visit(nodes, el) }
-      case Block(tag, nodes) -> parent.div.with fn (el) {
-        if tag.size > 0 { el.attr('class', tag) }
+      case Footnote(name) -> {
+        if @enable_footnotes {
+          match @footnotes.opt(name) {
+            case Some(id) -> {
+              parent
+                .a
+                .attr('href', '#footnote-${id}')
+                .attr('class', 'footnote')
+                .with(fn (a) { a.sup.text(id.to_string) })
 
-        visit(nodes, el)
+              nil
+            }
+            case _ -> {}
+          }
+        }
       }
-      case Span(tag, nodes) -> parent.span.with fn (el) {
-        if tag.size > 0 { el.attr('class', tag) }
+      case UnorderedList(items) -> parent.ul.with(fn (el) { visit(items, el) })
+      case OrderedList(items) -> parent.ol.with(fn (el) { visit(items, el) })
+      case ListItem(nodes) -> parent.li.with(fn (el) { visit(nodes, el) })
+      case Quote(nodes) -> parent.blockquote.with(fn (el) { visit(nodes, el) })
+      case Heading(1, nodes) -> parent.h1.with(fn (el) { visit(nodes, el) })
+      case Heading(2, nodes) -> parent.h2.with(fn (el) { visit(nodes, el) })
+      case Heading(3, nodes) -> parent.h3.with(fn (el) { visit(nodes, el) })
+      case Heading(4, nodes) -> parent.h4.with(fn (el) { visit(nodes, el) })
+      case Heading(5, nodes) -> parent.h5.with(fn (el) { visit(nodes, el) })
+      case Heading(_, nodes) -> parent.h6.with(fn (el) { visit(nodes, el) })
+      case Superscript(nodes) -> parent.sup.with(fn (el) { visit(nodes, el) })
+      case Subscript(nodes) -> parent.sub.with(fn (el) { visit(nodes, el) })
+      case Block(tag, nodes) -> {
+        parent.div.with(fn (el) {
+          if tag.size > 0 { el.attr('class', tag) }
 
-        visit(nodes, el)
+          visit(nodes, el)
+        })
+      }
+      case Span(tag, nodes) -> {
+        parent.span.with(fn (el) {
+          if tag.size > 0 { el.attr('class', tag) }
+
+          visit(nodes, el)
+        })
       }
       case ThematicBreak -> parent.hr
       case LineBreak -> parent.br
-      case Table(head, body, foot) -> parent.table.with fn (table) {
-        if head.size > 0 {
-          table.thead.with fn (thead) {
-            head.iter.each fn (row) {
-              thead.tr.with fn (tr) {
-                row.iter.each fn (col) {
-                  tr.th.with fn (th) { visit(col, th) }
-                }
-              }
-            }
+      case Table(head, body, foot) -> {
+        parent.table.with(fn (table) {
+          if head.size > 0 {
+            table.thead.with(fn (thead) {
+              head.iter.each(fn (row) {
+                thead.tr.with(fn (tr) {
+                  row.iter.each(fn (col) {
+                    tr.th.with(fn (th) { visit(col, th) })
+                  })
+                })
+              })
+            })
           }
-        }
 
-        if body.size > 0 {
-          table.tbody.with fn (tbody) {
-            body.iter.each fn (row) {
-              tbody.tr.with fn (tr) {
-                row.iter.each fn (col) {
-                  tr.td.with fn (th) { visit(col, th) }
-                }
-              }
-            }
+          if body.size > 0 {
+            table.tbody.with(fn (tbody) {
+              body.iter.each(fn (row) {
+                tbody.tr.with(fn (tr) {
+                  row.iter.each(fn (col) {
+                    tr.td.with(fn (th) { visit(col, th) })
+                  })
+                })
+              })
+            })
           }
-        }
 
-        if foot.size > 0 {
-          table.tfoot.with fn (tfoot) {
-            foot.iter.each fn (row) {
-              tfoot.tr.with fn (tr) {
-                row.iter.each fn (col) {
-                  tr.td.with fn (th) { visit(col, th) }
-                }
-              }
-            }
+          if foot.size > 0 {
+            table.tfoot.with(fn (tfoot) {
+              foot.iter.each(fn (row) {
+                tfoot.tr.with(fn (tr) {
+                  row.iter.each(fn (col) {
+                    tr.td.with(fn (th) { visit(col, th) })
+                  })
+                })
+              })
+            })
           }
-        }
+        })
       }
       case Comment(_) -> {}
     }
@@ -209,15 +216,15 @@ class pub Generator {
   }
 
   fn add_footnotes(document: mut html.Document) {
-    document.div.attr('class', 'footnotes').with fn (div) {
-      div.ol.with fn (ol) {
-        @footnotes.iter.each fn (entry) {
-          ol.li.attr('id', "footnote-{entry.value}").with fn (li) {
+    document.div.attr('class', 'footnotes').with(fn (div) {
+      div.ol.with(fn (ol) {
+        @footnotes.iter.each(fn (entry) {
+          ol.li.attr('id', 'footnote-${entry.value}').with(fn (li) {
             visit(@document.footnotes.get(entry.key), li)
-          }
-        }
-      }
-    }
+          })
+        })
+      })
+    })
   }
 }
 
@@ -245,22 +252,24 @@ class Heading {
 }
 
 class HeadingTree {
-  let @current: Option[mut Heading]
   let @roots: Array[Heading]
+  let @current: Option[mut Heading]
 
   fn mut add(level: Int, id: String, text: String) {
-    let heading = Heading {
-      @level = level,
-      @id = id,
-      @text = text,
-      @nodes = [],
-      @parent = Option.None,
-    }
+    let heading = Heading(
+      level: level,
+      id: id,
+      text: text,
+      nodes: [],
+      parent: Option.None,
+    )
 
     match @current {
-      case Some(val) if level == val.level -> match val.parent {
-        case Some(parent) -> parent.add(heading)
-        case _ -> add_root(heading)
+      case Some(val) if level == val.level -> {
+        match val.parent {
+          case Some(parent) -> parent.add(heading)
+          case _ -> add_root(heading)
+        }
       }
       case Some(val) if level > val.level -> {
         @current = Option.Some(mut heading)
@@ -293,20 +302,18 @@ class HeadingTree {
   fn to_html -> html.Element {
     let root = html.Element.new('ul')
 
-    root.with fn (ul) { @roots.iter.each fn (h) { visit(h, ul) } }
+    root.with(fn (ul) { @roots.iter.each(fn (h) { visit(h, ul) }) })
     root
   }
 
   fn visit(heading: ref Heading, element: mut html.Element) {
     let li = element.li
 
-    li.a.attr('href', "#{heading.id}").text(heading.text)
+    li.a.attr('href', '#${heading.id}').text(heading.text)
 
     if heading.nodes.empty? { return }
 
-    li.ul.with fn (ul) {
-      heading.nodes.iter.each fn (h) { visit(h, ul) }
-    }
+    li.ul.with(fn (ul) { heading.nodes.iter.each(fn (h) { visit(h, ul) }) })
   }
 }
 
@@ -329,26 +336,27 @@ class pub TableOfContents {
   let pub @ignore_class: String
 
   fn pub static new -> TableOfContents {
-    TableOfContents {
-      @ids = Map.new,
-      @tree = HeadingTree { @current = Option.None, @roots = [] },
-      @maximum = 6,
-      @class = 'toc',
-      @ignore_class = 'toc-ignore',
-    }
+    TableOfContents(
+      ids: Map.new,
+      tree: HeadingTree(current: Option.None, roots: []),
+      maximum: 6,
+      class: 'toc',
+      ignore_class: 'toc-ignore',
+    )
   }
 
   fn mut track_headings(document: mut html.Document) {
-    document.nodes.iter_mut.each fn (node) { heading(node) }
+    document.nodes.iter_mut.each(fn (node) { heading(node) })
   }
 
   fn mut heading(node: mut html.Node) {
     match node {
-      case Element(el)
-        if el.name.size == 2
-          and el.name.byte(0) == 104 #    "h"
-          and el.name.byte(1) >= 49  # >= "1"
-          and el.name.byte(1) <= 54  # <= "6"
+      case
+        Element(el)
+      if el.name.size == 2
+        and el.name.byte(0) == 104
+        and el.name.byte(1) >= 49
+        and el.name.byte(1) <= 54
       -> {
         match text_and_id(el) {
           case (id, text) -> {
@@ -362,7 +370,7 @@ class pub TableOfContents {
           }
         }
       }
-      case Element(el) -> el.nodes.iter_mut.each fn (n) { heading(n) }
+      case Element(el) -> el.nodes.iter_mut.each(fn (n) { heading(n) })
       case Text(_) -> {}
     }
   }
@@ -396,7 +404,7 @@ class pub TableOfContents {
     loop {
       match stack.pop {
         case Some(Element(el)) -> {
-          el.nodes.reverse_iter.each fn (node) { stack.push(node) }
+          el.nodes.reverse_iter.each(fn (node) { stack.push(node) })
         }
         case Some(Text(val)) -> {
           text.push(val)
@@ -411,7 +419,7 @@ class pub TableOfContents {
               case Some(DOT) -> id.push(HYPHEN)
               case Some(v) if URL_SAFE.get(v) -> id.push(v)
               case Some(TAB or LF or CR or SPACE) -> {
-                if id.last.unwrap_or(-1) != HYPHEN { id.push(HYPHEN) }
+                if id.last.or(-1) != HYPHEN { id.push(HYPHEN) }
 
                 loop {
                   match iter.peek {
@@ -436,7 +444,7 @@ class pub TableOfContents {
     match @ids.opt(id) {
       case Some(num) -> {
         @ids.set(id, num + 1)
-        "{id}-{num + 1}"
+        '${id}-${num + 1}'
       }
       case _ -> {
         @ids.set(id, 0)
@@ -452,7 +460,7 @@ class pub TableOfContents {
     # needed because in this loop we retain a reference to the element, and
     # `Array.set` drops that element, resulting in a drop error. Moving this to
     # a separate loop lets us work around that.
-    document.nodes.iter_mut.each_with_index fn (idx, node) {
+    document.nodes.iter_mut.each_with_index(fn (idx, node) {
       match node {
         case Element({ @name = 'div', @attributes = attr }) -> {
           match attr.opt('class') {
@@ -462,17 +470,17 @@ class pub TableOfContents {
         }
         case _ -> {}
       }
-    }
+    })
 
     if @tree.roots.size > 0 {
-      indexes.into_iter.each fn (idx) {
+      indexes.into_iter.each(fn (idx) {
         let toc = @tree.to_html
 
         toc.attr('class', @class)
         document.nodes.set(idx, html.Node.Element(toc))
-      }
+      })
     } else {
-      indexes.reverse_iter.each fn (idx) { document.nodes.remove_at(idx) }
+      indexes.reverse_iter.each(fn (idx) { document.nodes.remove_at(idx) })
     }
   }
 }

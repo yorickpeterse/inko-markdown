@@ -1,10 +1,10 @@
 # An opinionated subset of Markdown.
 import builder.html
-import markdown.html.Generator
-import markdown.parser.(Error, Parser)
-import std.cmp.Equal
-import std.fmt.(Format, Formatter)
-import std.string.Bytes
+import markdown.html (Generator)
+import markdown.parser (Error, Parser)
+import std.cmp (Equal)
+import std.fmt (Format, Formatter)
+import std.string (Bytes)
 
 # Splits a document into two chunks: one containing the raw front matter, and
 # the other containing the rest of the document.
@@ -19,9 +19,9 @@ import std.string.Bytes
 #     markdown.extract_front_matter("---\nkey: value\n---\ntest")
 #     # => ('key: value', 'test')
 fn pub split_front_matter(input: String) -> (String, String) {
-  if input.starts_with?("---\n").false? { return ('', input) }
+  if input.starts_with?('---\n').false? { return ('', input) }
 
-  match input.byte_index(of: "\n---", starting_at: 3) {
+  match input.byte_index(of: '\n---', starting_at: 3) {
     case Some(idx) -> {
       let mut rest = idx + 4
 
@@ -31,7 +31,7 @@ fn pub split_front_matter(input: String) -> (String, String) {
 
       (
         input.slice(start: 4, size: idx - 4).into_string,
-        input.slice(start: rest, size: input.size).into_string
+        input.slice(start: rest, size: input.size).into_string,
       )
     }
     case _ -> ('', input)
@@ -59,7 +59,7 @@ class pub Document {
   #
   # # Examples
   #
-  #     import markdown.Document
+  #     import markdown (Document)
   #
   #     Document.parse('*hello*')
   fn pub static parse[T: Bytes](input: T) -> Result[Document, Error] {
@@ -73,7 +73,7 @@ class pub Document {
   #
   # # Examples
   #
-  #     import markdown.Document
+  #     import markdown (Document)
   #
   #     Document
   #       .parse('*hello*')
@@ -248,9 +248,7 @@ impl Format for Node {
       case Span(tag, nodes) -> {
         formatter.tuple('Span').field(tag).field(nodes).finish
       }
-      case Quote(nodes) -> {
-        formatter.tuple('Quote').field(nodes).finish
-      }
+      case Quote(nodes) -> formatter.tuple('Quote').field(nodes).finish
       case Emphasis(nodes) -> formatter.tuple('Emphasis').field(nodes).finish
       case Paragraph(nodes) -> formatter.tuple('Paragraph').field(nodes).finish
       case Strong(nodes) -> formatter.tuple('Strong').field(nodes).finish

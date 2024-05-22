@@ -1,9 +1,9 @@
 # Parsing of Markdown documents into an Abstract Syntax Tree.
-import markdown.(Document, Node, Link)
-import markdown.lexer.(Kind, Lexer, CR, GRAVE, SPACE, TAB, Token)
-import std.cmp.Equal
-import std.fmt.(Format, Formatter)
-import std.string.(Bytes, StringBuffer, ToString)
+import markdown (Document, Link, Node)
+import markdown.lexer (CR, GRAVE, Kind, Lexer, SPACE, TAB, Token)
+import std.cmp (Equal)
+import std.fmt (Format, Formatter)
+import std.string (Bytes, StringBuffer, ToString)
 
 # An error produced during parsing.
 class pub Error {
@@ -63,12 +63,12 @@ class Parser[T: Bytes] {
 
   # Returns a new `Parser` that will parse the given input.
   fn static new(input: T) -> Parser[T] {
-    Parser {
-      @lexer = Lexer.new(input),
-      @peeked = Option.None,
-      @references = Map.new,
-      @footnotes = Map.new,
-    }
+    Parser(
+      lexer: Lexer.new(input),
+      peeked: Option.None,
+      references: Map.new,
+      footnotes: Map.new,
+    )
   }
 
   fn mut next_token -> Option[Token] {
@@ -90,16 +90,18 @@ class Parser[T: Bytes] {
     match @peeked {
       case Some(Some({ @kind = kind })) -> Option.Some(kind)
       case Some(None) -> Option.None
-      case _ -> match @lexer.next {
-        case Some(val) -> {
-          let ret = val.kind
+      case _ -> {
+        match @lexer.next {
+          case Some(val) -> {
+            let ret = val.kind
 
-          @peeked = Option.Some(Option.Some(val))
-          Option.Some(ret)
-        }
-        case _ -> {
-          @peeked = Option.None
-          Option.None
+            @peeked = Option.Some(Option.Some(val))
+            Option.Some(ret)
+          }
+          case _ -> {
+            @peeked = Option.None
+            Option.None
+          }
         }
       }
     }
@@ -108,11 +110,9 @@ class Parser[T: Bytes] {
   fn move parse -> Result[Document, Error] {
     let nodes = try block(Block.Default)
 
-    Result.Ok(Document {
-      @children = nodes,
-      @references = @references,
-      @footnotes = @footnotes,
-    })
+    Result.Ok(
+      Document(children: nodes, references: @references, footnotes: @footnotes),
+    )
   }
 
   fn mut block(mode: ref Block) -> Result[Array[Node], Error] {
@@ -125,13 +125,17 @@ class Parser[T: Bytes] {
         case Some(EmptyLine) -> skip_token
         case Some(UnorderedList(n)) -> nodes.push(try unordered_list(indent: n))
         case Some(OrderedList(n)) -> nodes.push(try ordered_list(indent: n))
-        case Some(Quote(open)) -> match mode {
-          case Quote(close) if open == close -> break
-          case _ -> nodes.push(try block_quote(open))
+        case Some(Quote(open)) -> {
+          match mode {
+            case Quote(close) if open == close -> break
+            case _ -> nodes.push(try block_quote(open))
+          }
         }
-        case Some(Block(open)) -> match mode {
-          case Custom(close) if open == close -> break
-          case _ -> nodes.push(try custom_block(open))
+        case Some(Block(open)) -> {
+          match mode {
+            case Custom(close) if open == close -> break
+            case _ -> nodes.push(try custom_block(open))
+          }
         }
         case Some(Reference) -> try reference
         case Some(ThematicBreak) -> {
@@ -140,11 +144,13 @@ class Parser[T: Bytes] {
         }
         case Some(TableRow) -> nodes.push(try table_without_header)
         case Some(TableHeader) -> nodes.push(try table_with_header)
-        case Some(TableColumn or TableFooter) -> throw Error {
-          @message = "Tables must start with a header or a single row",
-          @offset = next_token.unwrap.offset,
+        case Some(TableColumn or TableFooter) -> {
+          throw Error(
+            message: 'Tables must start with a header or a single row',
+            offset: next_token.get.offset,
+          )
         }
-        case Some(Comment) -> nodes.push(comment(next_token.unwrap))
+        case Some(Comment) -> nodes.push(comment(next_token.get))
         case Some(_) -> try paragraph(nodes)
         case _ -> break
       }
@@ -164,12 +170,12 @@ class Parser[T: Bytes] {
           let nodes = try inline(Inline.List)
 
           match peek {
-            case Some(UnorderedList(spaces)) if spaces > indent -> nodes.push(
-              try unordered_list(spaces)
-            )
-            case Some(OrderedList(spaces)) if spaces > indent -> nodes.push(
-              try ordered_list(spaces)
-            )
+            case Some(UnorderedList(spaces)) if spaces > indent -> {
+              nodes.push(try unordered_list(spaces))
+            }
+            case Some(OrderedList(spaces)) if spaces > indent -> {
+              nodes.push(try ordered_list(spaces))
+            }
             case _ -> {}
           }
 
@@ -193,12 +199,12 @@ class Parser[T: Bytes] {
           let nodes = try inline(Inline.List)
 
           match peek {
-            case Some(OrderedList(spaces)) if spaces > indent -> nodes.push(
-              try ordered_list(spaces)
-            )
-            case Some(UnorderedList(spaces)) if spaces > indent -> nodes.push(
-              try unordered_list(spaces)
-            )
+            case Some(OrderedList(spaces)) if spaces > indent -> {
+              nodes.push(try ordered_list(spaces))
+            }
+            case Some(UnorderedList(spaces)) if spaces > indent -> {
+              nodes.push(try unordered_list(spaces))
+            }
             case _ -> {}
           }
 
@@ -257,27 +263,33 @@ class Parser[T: Bytes] {
 
     loop {
       match peek {
-        case Some(BracketClose) -> match mode {
-          case Brackets -> break
-          case _ -> nodes.push(Node.Text(token_value(next_token.unwrap)))
+        case Some(BracketClose) -> {
+          match mode {
+            case Brackets -> break
+            case _ -> nodes.push(Node.Text(token_value(next_token.get)))
+          }
         }
         case Some(CurlyOpen or CurlyClose) -> {
-          nodes.push(Node.Text(token_value(next_token.unwrap)))
+          nodes.push(Node.Text(token_value(next_token.get)))
         }
         case Some(SoftBreak) -> {
           skip_token
 
           match peek {
             case Some(Quote(_) or Block(_)) -> break
-            case _ -> match ref mode {
-              case List or Footnote or Cell -> match peek {
-                case Some(Indent) -> {
-                  skip_token
-                  nodes.push(Node.Text("\n"))
+            case _ -> {
+              match ref mode {
+                case List or Footnote or Cell -> {
+                  match peek {
+                    case Some(Indent) -> {
+                      skip_token
+                      nodes.push(Node.Text('\n'))
+                    }
+                    case _ -> break
+                  }
                 }
-                case _ -> break
+                case _ -> nodes.push(Node.Text('\n'))
               }
-              case _ -> nodes.push(Node.Text("\n"))
             }
           }
         }
@@ -285,39 +297,45 @@ class Parser[T: Bytes] {
           skip_token
           nodes.push(Node.LineBreak)
         }
-        case Some(
-          Colon
-            or Greater
-            or ParenClose
-            or ParenOpen
-            or Text
-        ) -> nodes.push(Node.Text(token_value(next_token.unwrap)))
+        case Some(Colon or Greater or ParenClose or ParenOpen or Text) -> {
+          nodes.push(Node.Text(token_value(next_token.get)))
+        }
         case Some(Indent) -> skip_token
-        case Some(Strong) -> match ref mode {
-          case Strong -> break
-          case _ -> nodes.push(try strong)
+        case Some(Strong) -> {
+          match ref mode {
+            case Strong -> break
+            case _ -> nodes.push(try strong)
+          }
         }
-        case Some(Underscore) -> match ref mode {
-          case Emphasis -> break
-          case _ -> nodes.push(try emphasis)
+        case Some(Underscore) -> {
+          match ref mode {
+            case Emphasis -> break
+            case _ -> nodes.push(try emphasis)
+          }
         }
-        case Some(Caret) -> match ref mode {
-          case Superscript -> break
-          case _ -> nodes.push(try superscript)
+        case Some(Caret) -> {
+          match ref mode {
+            case Superscript -> break
+            case _ -> nodes.push(try superscript)
+          }
         }
-        case Some(Tilde) -> match ref mode {
-          case Subscript -> break
-          case _ -> nodes.push(try subscript)
+        case Some(Tilde) -> {
+          match ref mode {
+            case Subscript -> break
+            case _ -> nodes.push(try subscript)
+          }
         }
         case Some(CodeSpan) -> nodes.push(code_span)
         case Some(Less) -> nodes.push(try auto_link)
         case Some(BracketOpen) -> nodes.push(try brackets)
         case Some(ImageOpen) -> nodes.push(try image)
-        case Some(FootnoteOpen) -> match ref mode {
-          case Footnote -> break
-          case _ -> try footnote(nodes)
+        case Some(FootnoteOpen) -> {
+          match ref mode {
+            case Footnote -> break
+            case _ -> try footnote(nodes)
+          }
         }
-        case Some(Comment) -> nodes.push(comment(next_token.unwrap))
+        case Some(Comment) -> nodes.push(comment(next_token.get))
         case _ -> break
       }
     }
@@ -332,7 +350,7 @@ class Parser[T: Bytes] {
     # content. We handle this here by removing trailing newlines. This isn't
     # ideal, but the alternative is duplicating a ton of code, which is worse.
     match nodes.last {
-      case Some(Text("\n")) -> {
+      case Some(Text('\n')) -> {
         nodes.pop
         nil
       }
@@ -384,7 +402,7 @@ class Parser[T: Bytes] {
   }
 
   fn mut brackets -> Result[Node, Error] {
-    next_token.unwrap
+    next_token.get
 
     let children = try inline(Inline.Brackets)
 
@@ -409,7 +427,7 @@ class Parser[T: Bytes] {
   }
 
   fn mut reference -> Result[Nil, Error] {
-    let name = token_value(next_token.unwrap)
+    let name = token_value(next_token.get)
     let url = text_line
 
     @references.set(name, url)
@@ -480,10 +498,11 @@ class Parser[T: Bytes] {
         case Some({ @offset = offset, @size = size }) -> {
           buffer.append(@lexer.input.slice(offset, size))
         }
-        case _ -> throw Error {
-          @message = "Expected {closing.description}, \
-            but no more input remains",
-          @offset = @lexer.offset,
+        case _ -> {
+          throw Error(
+            message: 'Expected ${closing.description}, but no more input remains',
+            offset: @lexer.offset,
+          )
         }
       }
     }
@@ -503,7 +522,7 @@ class Parser[T: Bytes] {
   }
 
   fn mut code_span -> Node {
-    let tok = next_token.unwrap
+    let tok = next_token.get
 
     Node.CodeSpan(slice(tok.offset, tok.size))
   }
@@ -609,14 +628,17 @@ class Parser[T: Bytes] {
   ) -> Result[Token, Error] {
     match token {
       case Some(tok) if tok.kind == kind -> Result.Ok(tok)
-      case Some(tok) -> throw Error {
-        @message = "Expected {kind.description}, \
-          but {tok.kind.description} was found instead",
-        @offset = tok.offset,
+      case Some(tok) -> {
+        throw Error(
+          message: 'Expected ${kind.description}, but ${tok.kind.description} was found instead',
+          offset: tok.offset,
+        )
       }
-      case _ -> throw Error {
-        @message = "Expected {kind.description}, but no more input remains",
-        @offset = @lexer.offset,
+      case _ -> {
+        throw Error(
+          message: 'Expected ${kind.description}, but no more input remains',
+          offset: @lexer.offset,
+        )
       }
     }
   }

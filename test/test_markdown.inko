@@ -1,41 +1,37 @@
-import markdown.(Document, split_front_matter)
-import std.test.Tests
+import markdown (Document, split_front_matter)
+import std.test (Tests)
 
 fn pub tests(t: mut Tests) {
-  t.test('split_front_matter') fn (t) {
+  t.test('split_front_matter', fn (t) {
     t.equal(split_front_matter(''), ('', ''))
     t.equal(split_front_matter('foo'), ('', 'foo'))
     t.equal(split_front_matter('--foo--'), ('', '--foo--'))
-    t.equal(split_front_matter("---\nfoo\n---"), ('foo', ''))
-    t.equal(split_front_matter("---\nfoo\n---\n"), ('foo', ''))
-    t.equal(split_front_matter("---\nfoo\n---\nbar"), ('foo', 'bar'))
+    t.equal(split_front_matter('---\nfoo\n---'), ('foo', ''))
+    t.equal(split_front_matter('---\nfoo\n---\n'), ('foo', ''))
+    t.equal(split_front_matter('---\nfoo\n---\nbar'), ('foo', 'bar'))
     t.equal(
-      split_front_matter("\n---\nfoo\n---\nbar"),
-      ('', "\n---\nfoo\n---\nbar")
+      split_front_matter('\n---\nfoo\n---\nbar'),
+      ('', '\n---\nfoo\n---\nbar'),
     )
 
-    t.equal(split_front_matter("---\nfoo\nbar"), ('', "---\nfoo\nbar"))
-    t.equal(split_front_matter("---\n---"), ('', ''))
-    t.equal(split_front_matter("---\n---\n"), ('', ''))
+    t.equal(split_front_matter('---\nfoo\nbar'), ('', '---\nfoo\nbar'))
+    t.equal(split_front_matter('---\n---'), ('', ''))
+    t.equal(split_front_matter('---\n---\n'), ('', ''))
     t.equal(
       split_front_matter(
-        '\
----
+        '---
 { "title": "foo" }
 ---
 
-foo\
-        '
+foo',
       ),
-      ('{ "title": "foo" }', "\nfoo")
+      ('{ "title": "foo" }', '\nfoo'),
     )
-  }
+  })
 
-  t.test('Document.parse') fn (t) {
-    t.true(Document.parse('foo').ok?)
-  }
+  t.test('Document.parse', fn (t) { t.true(Document.parse('foo').ok?) })
 
-  t.test('Document.to_html') fn (t) {
-    t.equal(Document.parse('foo').unwrap.to_html.to_string, '<p>foo</p>')
-  }
+  t.test('Document.to_html', fn (t) {
+    t.equal(Document.parse('foo').get.to_html.to_string, '<p>foo</p>')
+  })
 }
