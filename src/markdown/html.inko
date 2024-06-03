@@ -286,7 +286,10 @@ class HeadingTree {
         }
 
         match target {
-          case Some(t) -> t.add(heading)
+          case Some(t) -> {
+            @current = Option.Some(mut heading)
+            t.add(heading)
+          }
           case _ -> add_root(heading)
         }
       }

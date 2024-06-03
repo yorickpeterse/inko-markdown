@@ -1,6 +1,6 @@
 import markdown (Document)
 import markdown (Node)
-import markdown.html (Filter, Generator, TableOfContents)
+import markdown.html (Filter, Generator, HeadingTree, TableOfContents)
 import markdown.parser (Parser)
 import std.test (Tests)
 
@@ -25,6 +25,32 @@ fn filter[T: mut + Filter](input: String, filter: T) -> String {
 }
 
 fn pub tests(t: mut Tests) {
+  t.test('HeadingTree.add', fn (t) {
+    let tree = HeadingTree(roots: [], current: Option.None)
+
+    tree.add(level: 1, id: 'a', text: 'A')
+    tree.add(level: 2, id: 'b', text: 'B')
+    tree.add(level: 3, id: 'c', text: 'C')
+    tree.add(level: 2, id: 'd', text: 'D')
+    tree.add(level: 3, id: 'e', text: 'E')
+
+    let root = tree.roots.get(0)
+
+    t.equal(root.id, 'a')
+    t.equal(tree.current.as_ref.map(fn (v) { v.id }), Option.Some('e'))
+    t.equal(root.nodes.size, 2)
+    t.equal(root.nodes.opt(0).map(fn (v) { v.id }), Option.Some('b'))
+    t.equal(
+      root.nodes.opt(0).then(fn (v) { v.nodes.opt(0) }).map(fn (v) { v.id }),
+      Option.Some('c'),
+    )
+    t.equal(root.nodes.opt(1).map(fn (v) { v.id }), Option.Some('d'))
+    t.equal(
+      root.nodes.opt(1).then(fn (v) { v.nodes.opt(0) }).map(fn (v) { v.id }),
+      Option.Some('e'),
+    )
+  })
+
   t.test('Generator.generate with regular text', fn (t) {
     t.equal(gen('abc'), '<p>abc</p>')
   })
@@ -268,7 +294,9 @@ fn pub tests(t: mut Tests) {
 # Installation
 ## Linux
 ### Alpine
+#### Examples A
 ### Ubuntu
+#### Examples B
 ## Windows
 # Manually
         ',
@@ -283,8 +311,18 @@ fn pub tests(t: mut Tests) {
       <li>
         <a href="#linux">Linux</a>
         <ul>
-          <li><a href="#alpine">Alpine</a></li>
-          <li><a href="#ubuntu">Ubuntu</a></li>
+          <li>
+            <a href="#alpine">Alpine</a>
+            <ul>
+              <li><a href="#examples-a">Examples A</a></li>
+            </ul>
+          </li>
+          <li>
+            <a href="#ubuntu">Ubuntu</a>
+            <ul>
+              <li><a href="#examples-b">Examples B</a></li>
+            </ul>
+          </li>
         </ul>
       </li>
       <li><a href="#windows">Windows</a></li>
@@ -295,7 +333,9 @@ fn pub tests(t: mut Tests) {
 <h1 id="installation">Installation</h1>
 <h2 id="linux">Linux</h2>
 <h3 id="alpine">Alpine</h3>
+<h4 id="examples-a">Examples A</h4>
 <h3 id="ubuntu">Ubuntu</h3>
+<h4 id="examples-b">Examples B</h4>
 <h2 id="windows">Windows</h2>
 <h1 id="manually">Manually</h1>
       '
