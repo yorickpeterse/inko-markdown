@@ -282,7 +282,7 @@ in `<sup></sup>foo<sup></sup>`.
 # Installation
 
 ```bash
-inko pkg add github.com/yorickpeterse/inko-markdown 0.16.0
+inko pkg add github.com/yorickpeterse/inko-markdown 0.17.0
 inko pkg sync
 ```
 
