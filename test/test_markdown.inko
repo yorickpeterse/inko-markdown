@@ -29,6 +29,14 @@ foo',
     )
   })
 
+  t.test('Document.new', fn (t) {
+    let doc = Document.new
+
+    t.true(doc.children.empty?)
+    t.equal(doc.references.size, 0)
+    t.equal(doc.footnotes.size, 0)
+  })
+
   t.test('Document.parse', fn (t) { t.true(Document.parse('foo').ok?) })
 
   t.test('Document.to_html', fn (t) {

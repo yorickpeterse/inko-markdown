@@ -55,6 +55,17 @@ class pub Document {
   # as the footnote's text/body.
   let pub @footnotes: Map[String, Array[Node]]
 
+  # Returns a new empty Markdown document.
+  #
+  # # Examples
+  #
+  #     import markdown (Document)
+  #
+  #     Document.new
+  fn pub static new -> Document {
+    Document(children: [], references: Map.new, footnotes: Map.new)
+  }
+
   # Parses markup into a document.
   #
   # # Examples
