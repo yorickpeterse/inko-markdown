@@ -2,6 +2,7 @@
 import builder.html
 import markdown.html (Generator)
 import markdown.parser (Error, Parser)
+import std.clone (Clone)
 import std.cmp (Equal)
 import std.fmt (Format, Formatter)
 import std.string (Bytes)
@@ -96,6 +97,24 @@ class pub Document {
   }
 }
 
+impl Clone[Document] for Document {
+  fn pub clone -> Document {
+    Document(
+      children: @children.clone,
+      references: @references.clone,
+      footnotes: @footnotes.clone,
+    )
+  }
+}
+
+impl Equal[ref Document] for Document {
+  fn pub ==(other: ref Document) -> Bool {
+    @children == other.children
+      and @references == other.references
+      and @footnotes == other.footnotes
+  }
+}
+
 # A type describing the kind of link something is.
 class pub enum Link {
   # A direct link, such as `[text](link here)`.
@@ -103,6 +122,15 @@ class pub enum Link {
 
   # A reference link, such as `[text][reference-name]`
   case Reference(String)
+}
+
+impl Clone[Link] for Link {
+  fn pub clone -> Link {
+    match self {
+      case Direct(v) -> Link.Direct(v)
+      case Reference(v) -> Link.Reference(v)
+    }
+  }
 }
 
 impl Equal[ref Link] for Link {
@@ -215,6 +243,36 @@ class pub enum Node {
 
   # A block comment.
   case Comment(String)
+}
+
+impl Clone[Node] for Node {
+  fn pub clone -> Node {
+    match self {
+      case Block(a, b) -> Node.Block(a, b.clone)
+      case Span(a, b) -> Node.Span(a, b.clone)
+      case Quote(v) -> Node.Quote(v.clone)
+      case Emphasis(v) -> Node.Emphasis(v.clone)
+      case Paragraph(v) -> Node.Paragraph(v.clone)
+      case Strong(v) -> Node.Strong(v.clone)
+      case CodeSpan(v) -> Node.CodeSpan(v)
+      case CodeBlock(a, b) -> Node.CodeBlock(a.clone, b)
+      case Text(v) -> Node.Text(v)
+      case AutoLink(v) -> Node.AutoLink(v)
+      case Link(a, b) -> Node.Link(a.clone, b.clone)
+      case Image(a, b) -> Node.Image(a.clone, b)
+      case Heading(a, b) -> Node.Heading(a, b.clone)
+      case Footnote(v) -> Node.Footnote(v)
+      case UnorderedList(v) -> Node.UnorderedList(v.clone)
+      case OrderedList(v) -> Node.OrderedList(v.clone)
+      case ListItem(v) -> Node.ListItem(v.clone)
+      case ThematicBreak -> Node.ThematicBreak
+      case Superscript(v) -> Node.Superscript(v.clone)
+      case Subscript(v) -> Node.Subscript(v.clone)
+      case Table(a, b, c) -> Node.Table(a.clone, b.clone, c.clone)
+      case LineBreak -> Node.LineBreak
+      case Comment(v) -> Node.Comment(v)
+    }
+  }
 }
 
 impl Equal[ref Node] for Node {

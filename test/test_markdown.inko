@@ -42,4 +42,11 @@ foo',
   t.test('Document.to_html', fn (t) {
     t.equal(Document.parse('foo').get.to_html.to_string, '<p>foo</p>')
   })
+
+  t.test('Document.clone', fn (t) {
+    let doc = Document.parse('hello').get
+
+    t.true(doc.clone == doc)
+    t.equal(doc.clone.to_html.to_string, '<p>hello</p>')
+  })
 }
