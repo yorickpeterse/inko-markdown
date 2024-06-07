@@ -11,22 +11,21 @@ let HYPHEN = 45
 let DOT = 46
 
 # A table that maps bytes (based on their index) to a boolean that states if the
-# byte can be included in URLs (and thus heading IDs). Bytes are used as an
-# index, and if the value is `true`, it's safe to include the byte.
+# byte can be included in URLs (and thus heading IDs). This table is modified to
+# also allow/keep emoticons as-is. Bytes are used as an index, and if the value
+# is `true`, it's safe to include the byte.
 let URL_SAFE = [
   false, false, false, false, false, false, false, false, false, false, false,
   false, false, false, false, false, false, false, false, false, false, false,
   false, false, false, false, false, false, false, false, false, false, false,
-  false, false, false, false, false, false, false, false, false, false, false,
-  false, true, true, false, true, true, true, true, true, true, true, true,
-  true, true, false, false, false, false, false, false, false, true, true, true,
+  true, false, false, true, false, true, true, true, true, true, true, true,
   true, true, true, true, true, true, true, true, true, true, true, true, true,
-  true, true, true, true, true, true, true, true, true, true, false, false,
-  false, false, true, false, true, true, true, true, true, true, true, true,
+  true, true, false, true, false, true, true, true, true, true, true, true,
   true, true, true, true, true, true, true, true, true, true, true, true, true,
-  true, true, true, true, true, false, false, false, true, true, true, true,
+  true, true, true, true, true, true, true, true, false, false, false, false,
+  true, false, true, true, true, true, true, true, true, true, true, true, true,
   true, true, true, true, true, true, true, true, true, true, true, true, true,
-  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, false, false, false, true, true, true, true, true, true, true,
   true, true, true, true, true, true, true, true, true, true, true, true, true,
   true, true, true, true, true, true, true, true, true, true, true, true, true,
   true, true, true, true, true, true, true, true, true, true, true, true, true,
@@ -34,8 +33,34 @@ let URL_SAFE = [
   true, true, true, true, true, true, true, true, true, true, true, true, true,
   true, true, true, true, true, true, true, true, true, true, true, true, true,
   true, true, true, true, true, true, true, true, true, true, true, true, true,
-  true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true,
 ]
+
+# The characters to use for percent encoding special bytes.
+let PERCENT_CHARS = '0123456789ABCDEF'
+
+fn percent_encode(byte: Int, into: mut ByteArray) {
+  into.push(37)
+  into.push(PERCENT_CHARS.byte(byte / 16 % 16))
+  into.push(PERCENT_CHARS.byte(byte % 16))
+}
+
+fn percent_encode_normal(byte: Int, into: mut ByteArray) {
+  let chars = '0123456789ABCDEF'
+  let mut val = byte
+  let tmp = ByteArray.new
+
+  while val > 0 {
+    tmp.push(chars.byte(val % 16))
+    val /= 16
+  }
+
+  tmp.push(37)
+  tmp.reverse
+  into.copy_from(tmp, at: 0, size: tmp.size)
+}
 
 # Generates an HTML document from a markup document.
 #
@@ -419,7 +444,6 @@ class pub TableOfContents {
               # If the byte is in the ASCII range A-Z, lowercase it; otherwise
               # we keep it as-is.
               case Some(v) if v >= 65 and v <= 90 -> id.push(v + 32)
-              case Some(DOT) -> id.push(HYPHEN)
               case Some(v) if URL_SAFE.get(v) -> id.push(v)
               case Some(TAB or LF or CR or SPACE) -> {
                 if id.last.or(-1) != HYPHEN { id.push(HYPHEN) }
@@ -431,7 +455,7 @@ class pub TableOfContents {
                   }
                 }
               }
-              case Some(_) -> {}
+              case Some(v) -> percent_encode(v, into: id)
               case _ -> break
             }
           }
