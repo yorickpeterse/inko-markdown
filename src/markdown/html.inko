@@ -389,8 +389,13 @@ class pub TableOfContents {
         match text_and_id(el) {
           case (id, text) -> {
             let level = el.name.byte(1) - 48
-
-            el.attr('id', id)
+            let id = match el.attributes.opt('id') {
+              case Some(v) -> v
+              case _ -> {
+                el.attr('id', id)
+                id
+              }
+            }
 
             if level <= @maximum and ignore?(el).false? {
               @tree.add(level, id, text)

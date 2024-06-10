@@ -1,3 +1,4 @@
+import builder.html
 import markdown (Document)
 import markdown (Node)
 import markdown.html (
@@ -727,5 +728,21 @@ fn pub tests(t: mut Tests) {
       '
         .trim,
     )
+  })
+
+  t.test('TableOfContents.run with existing header IDs', fn (t) {
+    let doc = html.Document.fragment
+    let h1 = doc.h1
+    let h2 = doc.h2
+    let h3 = doc.h3
+
+    h1.attr('id', 'foo').text('Heading 1')
+    h2.attr('id', 'bar').text('Heading 2')
+    h3.text('Heading 3')
+    TableOfContents.new.run(doc)
+
+    t.equal(h1.attributes.opt('id'), Option.Some('foo'))
+    t.equal(h2.attributes.opt('id'), Option.Some('bar'))
+    t.equal(h3.attributes.opt('id'), Option.Some('heading-3'))
   })
 }
