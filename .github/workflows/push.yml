@@ -12,7 +12,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/inko-lang/inko:main
+      image: ghcr.io/inko-lang/inko:latest
     steps:
       - run: microdnf install --quiet --assumeyes tar git
       - uses: actions/checkout@v4
