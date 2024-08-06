@@ -30,7 +30,7 @@ jobs:
       - name: Build documentation
         run: idoc
       - name: Upload documentation
-        uses: actions/upload-pages-artifact
+        uses: actions/upload-pages-artifact@v3
         with:
           path: build/idoc/public
 
