@@ -2,6 +2,8 @@
 name: Push
 on:
   push:
+    branches:
+      - '**'
   pull_request:
 
 concurrency:
@@ -14,13 +16,14 @@ jobs:
     container:
       image: ghcr.io/inko-lang/inko:latest
     steps:
-      - run: microdnf install --quiet --assumeyes tar git
+      - name: Install dependencies
+        run: microdnf install --quiet --assumeyes tar git
       - uses: actions/checkout@v4
       - uses: actions/cache@v4
-        id: test
         with:
           path: '~/.local/share/inko/packages'
-          key: test-${{ hashFiles('inko.pkg') }}
-      - run: inko --version
-      - run: inko pkg sync
-      - run: inko test
+          key: deps-${{ hashFiles('inko.pkg') }}
+      - name: Install Inko packages
+        run: inko pkg sync
+      - name: Run tests
+        run: inko test
