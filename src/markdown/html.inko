@@ -66,12 +66,14 @@ fn percent_encode_normal(byte: Int, into: mut ByteArray) {
 #
 # # Examples
 #
-#     import markdown.html (Generator)
-#     import markdown.parser (Parser)
+# ```inko
+# import markdown.html (Generator)
+# import markdown.parser (Parser)
 #
-#     let doc = Parser.new('*hello*').parse.expect('the markup is invalid')
+# let doc = Parser.new('*hello*').parse.expect('the markup is invalid')
 #
-#     Generator.new(doc).generate.to_string # => "<p><strong>hello</strong></p>"
+# Generator.new(doc).generate.to_string # => "<p><strong>hello</strong></p>"
+# ```
 class pub Generator {
   let @document: ref Document
   let @footnotes: Map[String, Int]

@@ -342,10 +342,12 @@ class Parser[T: Bytes] {
 
     # We may end up producing a trailing newline for markup such as:
     #
-    #     # a\n
-    #     # b
+    # ```
+    # # a\n
+    # # b
+    # ```
     #
-    # In this case the nodes are [text("a"), text("\n")]. When producing the
+    # In this case the nodes are `[text("a"), text("\n")]`. When producing the
     # newline, we can't easily check if whatever comes next is inline or block
     # content. We handle this here by removing trailing newlines. This isn't
     # ideal, but the alternative is duplicating a ton of code, which is worse.

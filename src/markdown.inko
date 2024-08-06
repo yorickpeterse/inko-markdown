@@ -15,10 +15,12 @@ import std.string (Bytes)
 #
 # # Examples
 #
-#     import markdown
+# ```inko
+# import markdown
 #
-#     markdown.extract_front_matter("---\nkey: value\n---\ntest")
-#     # => ('key: value', 'test')
+# markdown.extract_front_matter("---\nkey: value\n---\ntest")
+# # => ('key: value', 'test')
+# ```
 fn pub split_front_matter(input: String) -> (String, String) {
   if input.starts_with?('---\n').false? { return ('', input) }
 
@@ -60,9 +62,11 @@ class pub Document {
   #
   # # Examples
   #
-  #     import markdown (Document)
+  # ```inko
+  # import markdown (Document)
   #
-  #     Document.new
+  # Document.new
+  # ```
   fn pub static new -> Document {
     Document(children: [], references: Map.new, footnotes: Map.new)
   }
@@ -71,9 +75,11 @@ class pub Document {
   #
   # # Examples
   #
-  #     import markdown (Document)
+  # ```inko
+  # import markdown (Document)
   #
-  #     Document.parse('*hello*')
+  # Document.parse('*hello*')
+  # ```
   fn pub static parse[T: Bytes](input: T) -> Result[Document, Error] {
     Parser.new(input).parse
   }
@@ -85,13 +91,15 @@ class pub Document {
   #
   # # Examples
   #
-  #     import markdown (Document)
+  # ```inko
+  # import markdown (Document)
   #
-  #     Document
-  #       .parse('*hello*')
-  #       .expect('the markup must be valid')
-  #       .to_html
-  #       .to_string # => '<p><strong>hello</strong></p>'
+  # Document
+  #   .parse('*hello*')
+  #   .expect('the markup must be valid')
+  #   .to_html
+  #   .to_string # => '<p><strong>hello</strong></p>'
+  # ```
   fn pub to_html -> html.Document {
     Generator.new(self).generate
   }

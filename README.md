@@ -390,15 +390,6 @@ heading, i.e. this won't work:
 # _test_ [Table of contents]{toc-ignore}
 ```
 
-The following fields can be set to customize the process of generating the table
-of contents:
-
-| Option         | Default      | Description
-|:---------------|:-------------|:----------------------------------------------
-| `class`        | `toc`        | The `class` value of the container.
-| `ignore_class` | `toc-ignore` | The class used to ignore headings in the table
-| `maximum`      | `6`          | The maximum heading level to include.
-
 # License
 
 All source code in this repository is licensed under the Mozilla Public License
