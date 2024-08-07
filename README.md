@@ -47,6 +47,9 @@ This produces the following HTML:
 <p>Hello <strong>world</strong></p>
 ```
 
+For more information, refer to the [API
+documentation](https://yorickpeterse.github.io/inko-markdown/).
+
 # Filters
 
 Filters are used to transform HTML documents generated from Markdown documents.
