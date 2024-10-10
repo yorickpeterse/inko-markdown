@@ -1,9 +1,9 @@
 # Parsing of Markdown documents into an Abstract Syntax Tree.
 import markdown (Document, Link, Node)
-import markdown.lexer (CR, GRAVE, Kind, Lexer, SPACE, TAB, Token)
+import markdown.lexer (Kind, Lexer, Token)
 import std.cmp (Equal)
 import std.fmt (Format, Formatter)
-import std.string (Bytes, StringBuffer, ToString)
+import std.string (Bytes, ToString)
 
 # An error produced during parsing.
 class pub Error {
@@ -167,7 +167,7 @@ class Parser[T: Bytes] {
         case Some(UnorderedList(spaces)) if spaces == indent -> {
           skip_token
 
-          let nodes = try inline(Inline.List)
+          let nodes = try inline_content(Inline.List)
 
           match peek {
             case Some(UnorderedList(spaces)) if spaces > indent -> {
@@ -196,7 +196,7 @@ class Parser[T: Bytes] {
         case Some(OrderedList(spaces)) if spaces == indent -> {
           skip_token
 
-          let nodes = try inline(Inline.List)
+          let nodes = try inline_content(Inline.List)
 
           match peek {
             case Some(OrderedList(spaces)) if spaces > indent -> {
@@ -218,7 +218,7 @@ class Parser[T: Bytes] {
   }
 
   fn mut paragraph(nodes: mut Array[Node]) -> Result[Nil, Error] {
-    let inlines = try inline(Inline.Default)
+    let inlines = try inline_content(Inline.Default)
 
     if inlines.empty? { return Result.Ok(nil) }
 
@@ -258,7 +258,7 @@ class Parser[T: Bytes] {
     Result.Ok(Node.Block(tag, nodes))
   }
 
-  fn mut inline(mode: ref Inline) -> Result[Array[Node], Error] {
+  fn mut inline_content(mode: ref Inline) -> Result[Array[Node], Error] {
     let nodes = []
 
     loop {
@@ -365,7 +365,7 @@ class Parser[T: Bytes] {
   fn mut strong -> Result[Node, Error] {
     skip_token
 
-    let node = Node.Strong(try inline(Inline.Strong))
+    let node = Node.Strong(try inline_content(Inline.Strong))
 
     try expect(Kind.Strong)
     Result.Ok(node)
@@ -374,7 +374,7 @@ class Parser[T: Bytes] {
   fn mut emphasis -> Result[Node, Error] {
     skip_token
 
-    let node = Node.Emphasis(try inline(Inline.Emphasis))
+    let node = Node.Emphasis(try inline_content(Inline.Emphasis))
 
     try expect(Kind.Underscore)
     Result.Ok(node)
@@ -383,7 +383,7 @@ class Parser[T: Bytes] {
   fn mut superscript -> Result[Node, Error] {
     skip_token
 
-    let node = Node.Superscript(try inline(Inline.Superscript))
+    let node = Node.Superscript(try inline_content(Inline.Superscript))
 
     try expect(Kind.Caret)
     Result.Ok(node)
@@ -392,7 +392,7 @@ class Parser[T: Bytes] {
   fn mut subscript -> Result[Node, Error] {
     skip_token
 
-    let node = Node.Subscript(try inline(Inline.Subscript))
+    let node = Node.Subscript(try inline_content(Inline.Subscript))
 
     try expect(Kind.Tilde)
     Result.Ok(node)
@@ -406,7 +406,7 @@ class Parser[T: Bytes] {
   fn mut brackets -> Result[Node, Error] {
     next_token.get
 
-    let children = try inline(Inline.Brackets)
+    let children = try inline_content(Inline.Brackets)
 
     try expect(Kind.BracketClose)
 
@@ -464,7 +464,7 @@ class Parser[T: Bytes] {
         skip_token
         skip_whitespace
 
-        let val = try inline(Inline.Footnote)
+        let val = try inline_content(Inline.Footnote)
 
         @footnotes.set(name, val)
         nil
@@ -535,7 +535,7 @@ class Parser[T: Bytes] {
       case _ -> panic('unreachable')
     }
 
-    let children = try inline(Inline.Default)
+    let children = try inline_content(Inline.Default)
 
     Result.Ok(Node.Heading(level, children))
   }
@@ -594,7 +594,7 @@ class Parser[T: Bytes] {
         case _ -> break
       }
 
-      cols.push(try inline(Inline.Cell))
+      cols.push(try inline_content(Inline.Cell))
     }
 
     Result.Ok(cols)

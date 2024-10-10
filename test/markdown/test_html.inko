@@ -1,6 +1,5 @@
 import builder.html
 import markdown (Document)
-import markdown (Node)
 import markdown.html (
   Filter, Generator, HeadingTree, TableOfContents, percent_encode,
 )

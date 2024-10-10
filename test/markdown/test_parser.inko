@@ -1,4 +1,4 @@
-import markdown (Document, Link, Node)
+import markdown (Link, Node)
 import markdown.parser (Parser)
 import std.test (Tests)
 
