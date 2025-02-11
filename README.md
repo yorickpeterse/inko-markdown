@@ -18,7 +18,7 @@ use a slightly different syntax for block quotes.
 # Installation
 
 ```bash
-inko pkg add github.com/yorickpeterse/inko-markdown 0.21.0
+inko pkg add github.com/yorickpeterse/inko-markdown 0.22.0
 inko pkg sync
 ```
 
