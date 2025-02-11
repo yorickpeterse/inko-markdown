@@ -6,7 +6,7 @@ import std.fmt (Format, Formatter)
 import std.string (Bytes, ToString)
 
 # An error produced during parsing.
-class pub Error {
+type pub inline Error {
   # A human readable description of the error.
   let pub @message: String
 
@@ -14,7 +14,7 @@ class pub Error {
   let pub @offset: Int
 }
 
-impl Equal[ref Error] for Error {
+impl Equal for Error {
   fn pub ==(other: ref Error) -> Bool {
     @message == other.message and @offset == other.offset
   }
@@ -36,7 +36,7 @@ impl ToString for Error {
   }
 }
 
-class enum Inline {
+type copy enum Inline {
   case Brackets
   case Cell
   case Default
@@ -48,16 +48,16 @@ class enum Inline {
   case Superscript
 }
 
-class enum Block {
+type copy enum Block {
   case Default
   case Quote(Int)
   case Custom(Int)
 }
 
 # A parser that turns a Markdown document into an AST.
-class Parser[T: Bytes] {
+type Parser[T: Bytes] {
   let @lexer: Lexer[T]
-  let @peeked: Option[Option[Token]]
+  let mut @peeked: Option[Option[Token]]
   let @references: Map[String, String]
   let @footnotes: Map[String, Array[Node]]
 

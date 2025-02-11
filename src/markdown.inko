@@ -42,21 +42,21 @@ fn pub split_front_matter(input: String) -> (String, String) {
 }
 
 # A parsed document.
-class pub Document {
+type pub Document {
   # The markup nodes in this document.
-  let pub @children: Array[Node]
+  let pub mut @children: Array[Node]
 
   # The link references defined in this document.
   #
   # The keys are the names of the references, and the values the links they
   # point to.
-  let pub @references: Map[String, String]
+  let pub mut @references: Map[String, String]
 
   # The footnotes defined in this document.
   #
   # The keys of this map are the footnote names. The value are the nodes acting
   # as the footnote's text/body.
-  let pub @footnotes: Map[String, Array[Node]]
+  let pub mut @footnotes: Map[String, Array[Node]]
 
   # Returns a new empty Markdown document.
   #
@@ -105,7 +105,7 @@ class pub Document {
   }
 }
 
-impl Clone[Document] for Document {
+impl Clone for Document {
   fn pub clone -> Document {
     Document(
       children: @children.clone,
@@ -115,7 +115,7 @@ impl Clone[Document] for Document {
   }
 }
 
-impl Equal[ref Document] for Document {
+impl Equal for Document {
   fn pub ==(other: ref Document) -> Bool {
     @children == other.children
       and @references == other.references
@@ -124,7 +124,7 @@ impl Equal[ref Document] for Document {
 }
 
 # A type describing the kind of link something is.
-class pub enum Link {
+type pub inline enum Link {
   # A direct link, such as `[text](link here)`.
   case Direct(String)
 
@@ -132,7 +132,7 @@ class pub enum Link {
   case Reference(String)
 }
 
-impl Clone[Link] for Link {
+impl Clone for Link {
   fn pub clone -> Link {
     match self {
       case Direct(v) -> Link.Direct(v)
@@ -141,7 +141,7 @@ impl Clone[Link] for Link {
   }
 }
 
-impl Equal[ref Link] for Link {
+impl Equal for Link {
   fn pub ==(other: ref Link) -> Bool {
     match (self, other) {
       case (Direct(a), Direct(b)) -> a == b
@@ -161,7 +161,7 @@ impl Format for Link {
 }
 
 # A node in a Markdown AST.
-class pub enum Node {
+type pub enum Node {
   # A custom block/div/container.
   #
   # The `String` argument is the tag/class of the block.
@@ -253,7 +253,7 @@ class pub enum Node {
   case Comment(String)
 }
 
-impl Clone[Node] for Node {
+impl Clone for Node {
   fn pub clone -> Node {
     match self {
       case Block(a, b) -> Node.Block(a, b.clone)
@@ -283,7 +283,7 @@ impl Clone[Node] for Node {
   }
 }
 
-impl Equal[ref Node] for Node {
+impl Equal for Node {
   fn pub ==(other: ref Node) -> Bool {
     match (self, other) {
       case (Block(a1, a2), Block(b1, b2)) -> a1 == b1 and a2 == b2

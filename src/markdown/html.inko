@@ -74,14 +74,14 @@ fn percent_encode_normal(byte: Int, into: mut ByteArray) {
 #
 # Generator.new(doc).generate.to_string # => "<p><strong>hello</strong></p>"
 # ```
-class pub Generator {
+type pub Generator {
   let @document: ref Document
   let @footnotes: Map[String, Int]
 
   # If footnotes should be included in the generated document.
   #
   # This option defaults to `true`.
-  let pub @enable_footnotes: Bool
+  let pub mut @enable_footnotes: Bool
 
   # Returns a new generator that will convert the given document to HTML.
   fn pub static new(document: ref Document) -> Generator {
@@ -265,10 +265,10 @@ trait pub Filter {
   fn pub mut run(document: mut html.Document)
 }
 
-class Heading {
+type Heading {
   let @nodes: Array[Heading]
-  let @parent: Option[mut Heading]
-  let @level: Int
+  let mut @parent: Option[mut Heading]
+  let mut @level: Int
   let @id: String
   let @text: String
 
@@ -278,9 +278,9 @@ class Heading {
   }
 }
 
-class HeadingTree {
+type HeadingTree {
   let @roots: Array[Heading]
-  let @current: Option[mut Heading]
+  let mut @current: Option[mut Heading]
 
   fn mut add(level: Int, id: String, text: String) {
     let heading = Heading(
@@ -348,7 +348,7 @@ class HeadingTree {
 }
 
 # A filter that adds IDs to headings, and optionally adds a table of contents.
-class pub TableOfContents {
+type pub TableOfContents {
   let @ids: Map[String, Int]
   let @tree: HeadingTree
 
@@ -356,14 +356,14 @@ class pub TableOfContents {
   #
   # For example, if this value is set to `3`, then `h4`, `h5` and `h6` elements
   # are excluded from the table of contents.
-  let pub @maximum: Int
+  let pub mut @maximum: Int
 
   # The class to apply to the table of contents container.
-  let pub @class: String
+  let pub mut @class: String
 
   # The class used to mark headings such that they're not included in the table
   # of contents.
-  let pub @ignore_class: String
+  let pub mut @ignore_class: String
 
   fn pub static new -> TableOfContents {
     TableOfContents(

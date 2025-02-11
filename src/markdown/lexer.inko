@@ -32,7 +32,7 @@ let PIPE = 124
 let RCURLY = 125
 let TILDE = 126
 
-class enum Kind {
+type inline enum Kind {
   case Block(Int)
   case BracketClose
   case BracketOpen
@@ -109,7 +109,7 @@ class enum Kind {
   }
 }
 
-impl Equal[ref Kind] for Kind {
+impl Equal for Kind {
   fn pub ==(other: ref Kind) -> Bool {
     match (self, other) {
       case (Block(a), Block(b)) -> a == b
@@ -197,13 +197,13 @@ impl Format for Kind {
 }
 
 # A token produced by a Lexer.
-class Token {
+type inline Token {
   let @kind: Kind
   let @offset: Int
   let @size: Int
 }
 
-impl Equal[ref Token] for Token {
+impl Equal for Token {
   fn pub ==(other: ref Token) -> Bool {
     @kind == other.kind and @offset == other.offset and @size == other.size
   }
@@ -221,10 +221,10 @@ impl Format for Token {
 }
 
 # A simple lexer for Markdown documents.
-class Lexer[T: Bytes] {
+type Lexer[T: Bytes] {
   let @input: T
-  let @offset: Int
-  let @line_start: Bool
+  let mut @offset: Int
+  let mut @line_start: Bool
 
   fn static new(input: T) -> Lexer[T] {
     Lexer(input: input, offset: 0, line_start: true)
