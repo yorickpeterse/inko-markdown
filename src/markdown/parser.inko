@@ -404,8 +404,7 @@ type Parser[T: Bytes] {
   }
 
   fn mut brackets -> Result[Node, Error] {
-    next_token.get
-
+    let _ = next_token.get
     let children = try inline_content(Inline.Brackets)
 
     try expect(Kind.BracketClose)

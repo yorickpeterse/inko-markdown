@@ -400,8 +400,8 @@ type Lexer[T: Bytes] {
 
   fn mut single_without_spaces(kind: Kind) -> Token {
     let token = single(kind)
+    let _ = advance_while_spaces
 
-    advance_while_spaces
     advance_if_newline
     token
   }
@@ -413,8 +413,8 @@ type Lexer[T: Bytes] {
 
   fn mut double_without_spaces(kind: Kind) -> Token {
     let token = double(kind)
+    let _ = advance_while_spaces
 
-    advance_while_spaces
     advance_if_newline
     token
   }
@@ -428,8 +428,8 @@ type Lexer[T: Bytes] {
     } else {
       token(Kind.UnorderedList(indent), start)
     }
+    let _ = advance_while_spaces
 
-    advance_while_spaces
     token
   }
 
@@ -559,16 +559,16 @@ impl Iter[Token] for Lexer {
         match peek {
           case Some(COLON) -> {
             advance(1)
-            advance_while(COLON)
 
+            let _ = advance_while(COLON)
             let size = @offset - start
 
             if size <= 2 {
               token(Kind.Text, start)
             } else {
               let tok = token(Kind.Block(size), start)
+              let _ = advance_while_spaces
 
-              advance_while_spaces
               tok
             }
           }
@@ -595,7 +595,9 @@ impl Iter[Token] for Lexer {
                     let token = token(Kind.Reference, name_start)
 
                     advance(2)
-                    advance_while_spaces
+
+                    let _ = advance_while_spaces
+
                     token
                   }
                   case _ -> {
@@ -633,15 +635,16 @@ impl Iter[Token] for Lexer {
       }
       case Some(GT) -> {
         advance(1)
-        advance_while(GT)
+
+        let _ = advance_while(GT)
 
         match @offset - start {
           case 1 -> token(Kind.Greater, start)
           case 2 -> token(Kind.Text, start)
           case n -> {
             let token = token(Kind.Quote(n), start)
+            let _ = advance_while_spaces
 
-            advance_while_spaces
             advance_if_newline
             token
           }
@@ -678,7 +681,8 @@ impl Iter[Token] for Lexer {
 
             # Whitespace after the hash sign is ignored, such that e.g. `# Foo`
             # results in the text being "Foo" instead of " Foo".
-            advance_while_spaces
+            let _ = advance_while_spaces
+
             token
           }
           case _ -> text(start)
