@@ -1,9 +1,10 @@
 # Parsing of Markdown documents into an Abstract Syntax Tree.
 import markdown (Document, Link, Node)
 import markdown.lexer (Kind, Lexer, Token)
+import std.bytes (Bytes, Slice)
 import std.cmp (Equal)
 import std.fmt (Format, Formatter)
-import std.string (Bytes, ToString)
+import std.string (ToString)
 
 # An error produced during parsing.
 type pub inline Error {
@@ -481,7 +482,7 @@ type Parser[T: Bytes] {
       match next_token {
         case Some({ @kind = SoftBreak or EmptyLine }) -> break
         case Some({ @offset = offset, @size = size }) -> {
-          buffer.append(@lexer.input.slice(offset, size))
+          buffer.append(Slice.new(@lexer.input, offset, offset + size))
         }
         case _ -> break
       }
@@ -497,7 +498,7 @@ type Parser[T: Bytes] {
       match next_token {
         case Some({ @kind = kind }) if kind == closing -> break
         case Some({ @offset = offset, @size = size }) -> {
-          buffer.append(@lexer.input.slice(offset, size))
+          buffer.append(Slice.new(@lexer.input, offset, offset + size))
         }
         case _ -> {
           throw Error(
@@ -645,7 +646,7 @@ type Parser[T: Bytes] {
   }
 
   fn slice(start: Int, size: Int) -> String {
-    @lexer.input.slice(start, size).into_string
+    Slice.new(@lexer.input, start, start + size).to_string
   }
 
   fn token_value(token: ref Token) -> String {

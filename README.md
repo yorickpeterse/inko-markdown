@@ -13,7 +13,7 @@ use a slightly different syntax for block quotes.
 
 # Requirements
 
-- Inko 0.18.0 or newer
+- Inko 0.19.0 or newer
 
 # Installation
 

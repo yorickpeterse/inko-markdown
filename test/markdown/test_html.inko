@@ -287,12 +287,12 @@ fn pub tests(t: mut Tests) {
       '%FF',
     ]
 
-    0.to(255).iter.each(fn (b) {
+    for b in 0.to(255).iter {
       let buf = ByteArray.new
 
       percent_encode(b, into: buf)
-      t.equal(buf.into_string, exp.get(b))
-    })
+      t.equal(buf.into_string, exp.get(b).or_panic)
+    }
   })
 
   t.test('HeadingTree.add', fn (t) {
@@ -304,20 +304,20 @@ fn pub tests(t: mut Tests) {
     tree.add(level: 2, id: 'd', text: 'D')
     tree.add(level: 3, id: 'e', text: 'E')
 
-    let root = tree.roots.get(0)
+    let root = tree.roots.get(0).or_panic
 
     t.equal(root.id, 'a')
     t.equal(tree.current.as_ref.map(fn (v) { v.id }), Option.Some('e'))
     t.equal(root.nodes.size, 2)
-    t.equal(root.nodes.opt(0).map(fn (v) { v.id }), Option.Some('b'))
+    t.equal(root.nodes.get(0).map(fn (v) { v.id }), Result.Ok('b'))
     t.equal(
-      root.nodes.opt(0).then(fn (v) { v.nodes.opt(0) }).map(fn (v) { v.id }),
-      Option.Some('c'),
+      root.nodes.get(0).then(fn (v) { v.nodes.get(0) }).map(fn (v) { v.id }),
+      Result.Ok('c'),
     )
-    t.equal(root.nodes.opt(1).map(fn (v) { v.id }), Option.Some('d'))
+    t.equal(root.nodes.get(1).map(fn (v) { v.id }), Result.Ok('d'))
     t.equal(
-      root.nodes.opt(1).then(fn (v) { v.nodes.opt(0) }).map(fn (v) { v.id }),
-      Option.Some('e'),
+      root.nodes.get(1).then(fn (v) { v.nodes.get(0) }).map(fn (v) { v.id }),
+      Result.Ok('e'),
     )
   })
 
@@ -740,8 +740,8 @@ fn pub tests(t: mut Tests) {
     h3.text('Heading 3')
     TableOfContents.new.run(doc)
 
-    t.equal(h1.attributes.opt('id'), Option.Some('foo'))
-    t.equal(h2.attributes.opt('id'), Option.Some('bar'))
-    t.equal(h3.attributes.opt('id'), Option.Some('heading-3'))
+    t.equal(h1.attributes.get('id'), Result.Ok('foo'))
+    t.equal(h2.attributes.get('id'), Result.Ok('bar'))
+    t.equal(h3.attributes.get('id'), Result.Ok('heading-3'))
   })
 }

@@ -43,8 +43,8 @@ let PERCENT_CHARS = '0123456789ABCDEF'
 
 fn percent_encode(byte: Int, into: mut ByteArray) {
   into.push(37)
-  into.push(PERCENT_CHARS.byte(byte / 16 % 16))
-  into.push(PERCENT_CHARS.byte(byte % 16))
+  into.push(PERCENT_CHARS.get(byte / 16 % 16).or_panic)
+  into.push(PERCENT_CHARS.get(byte % 16).or_panic)
 }
 
 fn percent_encode_normal(byte: Int, into: mut ByteArray) {
@@ -53,13 +53,13 @@ fn percent_encode_normal(byte: Int, into: mut ByteArray) {
   let tmp = ByteArray.new
 
   while val > 0 {
-    tmp.push(chars.byte(val % 16))
+    tmp.push(chars.get(val % 16).or_panic)
     val /= 16
   }
 
   tmp.push(37)
   tmp.reverse
-  into.copy_from(tmp, at: 0, size: tmp.size)
+  into.append(tmp)
 }
 
 # Generates an HTML document from a markup document.
@@ -85,8 +85,8 @@ type pub Generator {
 
   # Returns a new generator that will convert the given document to HTML.
   fn pub static new(document: ref Document) -> Generator {
-    let footnotes = document.footnotes.iter.reduce(Map.new, fn (map, entry) {
-      map.set(entry.key, map.size + 1)
+    let footnotes = document.footnotes.iter.reduce(Map.new, fn (map, kv) {
+      map.set(kv.0, map.size + 1)
       map
     })
 
@@ -105,7 +105,7 @@ type pub Generator {
   }
 
   fn visit[P: mut + html.Builder](nodes: ref Array[Node], parent: mut P) {
-    nodes.iter.each(fn (n) { visit_node(n, parent) })
+    for n in nodes.iter { visit_node(n, parent) }
   }
 
   fn visit_node[P: mut + html.Builder](node: ref Node, parent: mut P) {
@@ -135,8 +135,8 @@ type pub Generator {
         parent.a.attr('href', url).with(fn (el) { visit(nodes, el) })
       }
       case Link(Reference(name), nodes) -> {
-        match @document.references.opt(name) {
-          case Some(url) -> {
+        match @document.references.get(name) {
+          case Ok(url) -> {
             parent.a.attr('href', url).with(fn (a) { visit(nodes, a) })
           }
           case _ -> parent.a.with(fn (a) { visit(nodes, a) })
@@ -146,15 +146,15 @@ type pub Generator {
         parent.img.attr('src', url).attr('alt', alt)
       }
       case Image(Reference(name), alt) -> {
-        match @document.references.opt(name) {
-          case Some(url) -> parent.img.attr('src', url).attr('alt', alt)
+        match @document.references.get(name) {
+          case Ok(url) -> parent.img.attr('src', url).attr('alt', alt)
           case _ -> parent.img.attr('alt', alt)
         }
       }
       case Footnote(name) -> {
         if @enable_footnotes {
-          match @footnotes.opt(name) {
-            case Some(id) -> {
+          match @footnotes.get(name) {
+            case Ok(id) -> {
               parent
                 .a
                 .attr('href', '#footnote-${id}')
@@ -199,37 +199,31 @@ type pub Generator {
         parent.table.with(fn (table) {
           if head.size > 0 {
             table.thead.with(fn (thead) {
-              head.iter.each(fn (row) {
+              for row in head.iter {
                 thead.tr.with(fn (tr) {
-                  row.iter.each(fn (col) {
-                    tr.th.with(fn (th) { visit(col, th) })
-                  })
+                  for col in row.iter { tr.th.with(fn (th) { visit(col, th) }) }
                 })
-              })
+              }
             })
           }
 
           if body.size > 0 {
             table.tbody.with(fn (tbody) {
-              body.iter.each(fn (row) {
+              for row in body.iter {
                 tbody.tr.with(fn (tr) {
-                  row.iter.each(fn (col) {
-                    tr.td.with(fn (th) { visit(col, th) })
-                  })
+                  for col in row.iter { tr.td.with(fn (th) { visit(col, th) }) }
                 })
-              })
+              }
             })
           }
 
           if foot.size > 0 {
             table.tfoot.with(fn (tfoot) {
-              foot.iter.each(fn (row) {
+              for row in foot.iter {
                 tfoot.tr.with(fn (tr) {
-                  row.iter.each(fn (col) {
-                    tr.td.with(fn (th) { visit(col, th) })
-                  })
+                  for col in row.iter { tr.td.with(fn (th) { visit(col, th) }) }
                 })
-              })
+              }
             })
           }
         })
@@ -245,11 +239,11 @@ type pub Generator {
   fn add_footnotes(document: mut html.Document) {
     document.div.attr('class', 'footnotes').with(fn (div) {
       div.ol.with(fn (ol) {
-        @footnotes.iter.each(fn (entry) {
-          ol.li.attr('id', 'footnote-${entry.value}').with(fn (li) {
-            visit(@document.footnotes.get(entry.key), li)
+        for (key, val) in @footnotes.iter {
+          ol.li.attr('id', 'footnote-${val}').with(fn (li) {
+            visit(@document.footnotes.get(key).or_panic, li)
           })
-        })
+        }
       })
     })
   }
@@ -332,7 +326,9 @@ type HeadingTree {
   fn to_html -> html.Element {
     let root = html.Element.new('ul')
 
-    root.with(fn (ul) { @roots.iter.each(fn (h) { visit(h, ul) }) })
+    root.with(fn (ul) {
+      for h in @roots.iter { visit(h, ul) }
+    })
     root
   }
 
@@ -343,7 +339,9 @@ type HeadingTree {
 
     if heading.nodes.empty? { return }
 
-    li.ul.with(fn (ul) { heading.nodes.iter.each(fn (h) { visit(h, ul) }) })
+    li.ul.with(fn (ul) {
+      for h in heading.nodes.iter { visit(h, ul) }
+    })
   }
 }
 
@@ -376,7 +374,7 @@ type pub TableOfContents {
   }
 
   fn mut track_headings(document: mut html.Document) {
-    document.nodes.iter_mut.each(fn (node) { heading(node) })
+    for node in document.nodes.iter_mut { heading(node) }
   }
 
   fn mut heading(node: mut html.Node) {
@@ -384,15 +382,15 @@ type pub TableOfContents {
       case
         Element(el)
       if el.name.size == 2
-        and el.name.byte(0) == 104
-        and el.name.byte(1) >= 49
-        and el.name.byte(1) <= 54
+        and el.name.get(0).or_panic == 104
+        and el.name.get(1).or_panic >= 49
+        and el.name.get(1).or_panic <= 54
       -> {
         match text_and_id(el) {
           case (id, text) -> {
-            let level = el.name.byte(1) - 48
-            let id = match el.attributes.opt('id') {
-              case Some(v) -> v
+            let level = el.name.get(1).or_panic - 48
+            let id = match el.attributes.get('id') {
+              case Ok(v) -> v
               case _ -> {
                 el.attr('id', id)
                 id
@@ -405,16 +403,16 @@ type pub TableOfContents {
           }
         }
       }
-      case Element(el) -> el.nodes.iter_mut.each(fn (n) { heading(n) })
+      case Element(el) -> for n in el.nodes.iter_mut { heading(n) }
       case Text(_) -> {}
     }
   }
 
   fn mut ignore?(heading: mut html.Element) -> Bool {
-    match heading.nodes.opt(0) {
-      case Some(Element({ @name = 'span', @attributes = attr })) -> {
-        match attr.opt('class') {
-          case Some(v) if v == @ignore_class -> {}
+    match heading.nodes.get(0) {
+      case Ok(Element({ @name = 'span', @attributes = attr })) -> {
+        match attr.get('class') {
+          case Ok(v) if v == @ignore_class -> {}
           case _ -> return false
         }
       }
@@ -424,7 +422,7 @@ type pub TableOfContents {
     # We remove the span so it doesn't "leak" into the final document, as it
     # doesn't have a meaningful purpose there.
     match heading.nodes.remove_at(0) {
-      case Element({ @nodes = nodes }) -> heading.nodes = nodes
+      case Ok(Element({ @nodes = nodes })) -> heading.nodes = nodes
       case _ -> {}
     }
 
@@ -439,7 +437,7 @@ type pub TableOfContents {
     loop {
       match stack.pop {
         case Some(Element(el)) -> {
-          el.nodes.reverse_iter.each(fn (node) { stack.push(node) })
+          for node in el.nodes.reverse_iter { stack.push(node) }
         }
         case Some(Text(val)) -> {
           text.push(val)
@@ -451,7 +449,7 @@ type pub TableOfContents {
               # If the byte is in the ASCII range A-Z, lowercase it; otherwise
               # we keep it as-is.
               case Some(v) if v >= 65 and v <= 90 -> id.push(v + 32)
-              case Some(v) if URL_SAFE.get(v) -> id.push(v)
+              case Some(v) if URL_SAFE.get(v).or_panic -> id.push(v)
               case Some(TAB or LF or CR or SPACE) -> {
                 if id.last.or(-1) != HYPHEN { id.push(HYPHEN) }
 
@@ -475,8 +473,8 @@ type pub TableOfContents {
   }
 
   fn mut add_id(id: String) -> String {
-    match @ids.opt(id) {
-      case Some(num) -> {
+    match @ids.get(id) {
+      case Ok(num) -> {
         @ids.set(id, num + 1)
         '${id}-${num + 1}'
       }
@@ -494,27 +492,27 @@ type pub TableOfContents {
     # needed because in this loop we retain a reference to the element, and
     # `Array.set` drops that element, resulting in a drop error. Moving this to
     # a separate loop lets us work around that.
-    document.nodes.iter_mut.each_with_index(fn (idx, node) {
+    for (idx, node) in document.nodes.iter_mut.with_index {
       match node {
         case Element({ @name = 'div', @attributes = attr }) -> {
-          match attr.opt('class') {
-            case Some('toc') -> indexes.push(idx)
+          match attr.get('class') {
+            case Ok('toc') -> indexes.push(idx)
             case _ -> {}
           }
         }
         case _ -> {}
       }
-    })
+    }
 
     if @tree.roots.size > 0 {
-      indexes.into_iter.each(fn (idx) {
+      for idx in indexes {
         let toc = @tree.to_html
 
         toc.attr('class', @class)
         document.nodes.set(idx, html.Node.Element(toc))
-      })
+      }
     } else {
-      indexes.reverse_iter.each(fn (idx) { document.nodes.remove_at(idx) })
+      for idx in indexes.reverse_iter { document.nodes.remove_at(idx) }
     }
   }
 }

@@ -369,11 +369,11 @@ fn pub tests(t: mut Tests) {
 
   t.test('Link reference definitions', fn (t) {
     t.equal(parse('a\n[a]:b'), Result.Ok([p([text('a')])]))
-    t.equal(parse_refs('[a]:').opt('a'), Option.Some(''))
-    t.equal(parse_refs('[a]: b').opt('a'), Option.Some('b'))
-    t.equal(parse_refs('[a]: *b*').opt('a'), Option.Some('*b*'))
-    t.equal(parse_refs('[*a]: b').opt('*a'), Option.Some('b'))
-    t.equal(parse_refs('[a*]: b').opt('a*'), Option.Some('b'))
+    t.equal(parse_refs('[a]:').get('a'), Result.Ok(''))
+    t.equal(parse_refs('[a]: b').get('a'), Result.Ok('b'))
+    t.equal(parse_refs('[a]: *b*').get('a'), Result.Ok('*b*'))
+    t.equal(parse_refs('[*a]: b').get('*a'), Result.Ok('b'))
+    t.equal(parse_refs('[a*]: b').get('a*'), Result.Ok('b'))
     t.equal(parse('[**a**]: b'), Result.Error(7))
   })
 
@@ -383,29 +383,26 @@ fn pub tests(t: mut Tests) {
   })
 
   t.test('Footnote definitions', fn (t) {
+    t.equal(parse_footnotes('[^a]: foo').get('a'), Result.Ok(ref [text('foo')]))
+
     t.equal(
-      parse_footnotes('[^a]: foo').opt('a'),
-      Option.Some(ref [text('foo')]),
+      parse_footnotes('[^a]: **foo**').get('a'),
+      Result.Ok(ref [strong([text('foo')])]),
     )
 
     t.equal(
-      parse_footnotes('[^a]: **foo**').opt('a'),
-      Option.Some(ref [strong([text('foo')])]),
+      parse_footnotes('[^a]: foo\n[^a]: bar').get('a'),
+      Result.Ok(ref [text('bar')]),
     )
 
     t.equal(
-      parse_footnotes('[^a]: foo\n[^a]: bar').opt('a'),
-      Option.Some(ref [text('bar')]),
+      parse_footnotes('[^a]: foo\n bar').get('a'),
+      Result.Ok(ref [text('foo'), text('\n'), text('bar')]),
     )
 
     t.equal(
-      parse_footnotes('[^a]: foo\n bar').opt('a'),
-      Option.Some(ref [text('foo'), text('\n'), text('bar')]),
-    )
-
-    t.equal(
-      parse_footnotes('[^a]: foo\n\nbar').opt('a'),
-      Option.Some(ref [text('foo')]),
+      parse_footnotes('[^a]: foo\n\nbar').get('a'),
+      Result.Ok(ref [text('foo')]),
     )
   })
 

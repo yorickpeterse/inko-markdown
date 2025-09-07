@@ -1,8 +1,8 @@
 # Lexical analysis of Markdown documents.
+import std.bytes (Bytes, Slice)
 import std.cmp (Equal)
 import std.fmt (Format, Formatter)
 import std.iter (Iter)
-import std.string (Bytes)
 
 let TAB = 9
 let LF = 10
@@ -231,21 +231,11 @@ type Lexer[T: Bytes] {
   }
 
   fn current -> Option[Int] {
-    if @offset < @input.size {
-      Option.Some(@input.byte(@offset))
-    } else {
-      Option.None
-    }
+    @input.get(@offset).ok
   }
 
   fn peek -> Option[Int] {
-    let index = @offset + 1
-
-    if index < @input.size {
-      Option.Some(@input.byte(index))
-    } else {
-      Option.None
-    }
+    @input.get(@offset + 1).ok
   }
 
   fn peek_two -> (Option[Int], Option[Int]) {
@@ -253,7 +243,7 @@ type Lexer[T: Bytes] {
     let two = @offset + 2
 
     if one < @input.size and two < @input.size {
-      (Option.Some(@input.byte(one)), Option.Some(@input.byte(two)))
+      (@input.get(one).ok, @input.get(two).ok)
     } else {
       (Option.None, Option.None)
     }
@@ -446,9 +436,9 @@ type Lexer[T: Bytes] {
     while @offset < @input.size {
       if
         @offset + 3 < @input.size
-          and @input.byte(@offset) == HYPHEN
-          and @input.byte(@offset + 1) == HYPHEN
-          and @input.byte(@offset + 2) == GT
+          and @input.get(@offset).or_panic == HYPHEN
+          and @input.get(@offset + 1).or_panic == HYPHEN
+          and @input.get(@offset + 2).or_panic == GT
       {
         @offset += 3
         break
@@ -466,7 +456,7 @@ type Lexer[T: Bytes] {
     let info = if block {
       let start = @offset
       let size = advance_until_eol
-      let info = @input.slice(start, size).into_string
+      let info = Slice.new(@input, start, start + size).to_string
 
       advance_if_newline
       info
@@ -624,9 +614,9 @@ impl Iter[Token] for Lexer {
       case Some(LT) -> {
         if
           @offset + 3 < @input.size
-            and @input.byte(@offset + 1) == EXCL
-            and @input.byte(@offset + 2) == HYPHEN
-            and @input.byte(@offset + 3) == HYPHEN
+            and @input.get(@offset + 1).or_panic == EXCL
+            and @input.get(@offset + 2).or_panic == HYPHEN
+            and @input.get(@offset + 3).or_panic == HYPHEN
         {
           comment
         } else {

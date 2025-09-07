@@ -11,29 +11,6 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  fmt:
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/inko-lang/inko:latest
-    steps:
-      - run: microdnf install --quiet --assumeyes tar git
-      - uses: actions/checkout@v4
-      - run: inko --version
-      - run: inko fmt --check
-
   test:
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/inko-lang/inko:latest
-    steps:
-      - name: Install dependencies
-        run: microdnf install --quiet --assumeyes tar git
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v4
-        with:
-          path: '~/.local/share/inko/packages'
-          key: deps-${{ hashFiles('inko.pkg') }}
-      - name: Install Inko packages
-        run: inko pkg sync
-      - name: Run tests
-        run: inko test
+    name: Tests
+    uses: ./.github/workflows/tests.yml

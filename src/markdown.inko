@@ -2,10 +2,10 @@
 import builder.html
 import markdown.html (Generator)
 import markdown.parser (Error, Parser)
+import std.bytes (Bytes)
 import std.clone (Clone)
 import std.cmp (Equal)
 import std.fmt (Format, Formatter)
-import std.string (Bytes)
 
 # Splits a document into two chunks: one containing the raw front matter, and
 # the other containing the rest of the document.
@@ -24,17 +24,17 @@ import std.string (Bytes)
 fn pub split_front_matter(input: String) -> (String, String) {
   if input.starts_with?('---\n').false? { return ('', input) }
 
-  match input.byte_index(of: '\n---', starting_at: 3) {
+  match input.index_of(value: '\n---', starting_at: 3) {
     case Some(idx) -> {
       let mut rest = idx + 4
 
       # If the closing marker is followed by a newline, we'll swallow the
       # newline.
-      if rest < input.size and input.byte(rest) == 10 { rest += 1 }
+      if rest < input.size and input.get(rest).or_panic == 10 { rest += 1 }
 
       (
-        input.slice(start: 4, size: idx - 4).into_string,
-        input.slice(start: rest, size: input.size).into_string,
+        if idx > 3 { input.slice(start: 4, end: idx).to_string } else { '' },
+        input.slice(start: rest, end: input.size).to_string,
       )
     }
     case _ -> ('', input)
