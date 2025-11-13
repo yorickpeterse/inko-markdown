@@ -116,7 +116,7 @@ type Parser[T: Bytes] {
     )
   }
 
-  fn mut block(mode: ref Block) -> Result[Array[Node], Error] {
+  fn mut block(mode: Block) -> Result[Array[Node], Error] {
     let nodes = []
 
     loop {
@@ -259,7 +259,7 @@ type Parser[T: Bytes] {
     Result.Ok(Node.Block(tag, nodes))
   }
 
-  fn mut inline_content(mode: ref Inline) -> Result[Array[Node], Error] {
+  fn mut inline_content(mode: Inline) -> Result[Array[Node], Error] {
     let nodes = []
 
     loop {

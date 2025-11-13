@@ -22,7 +22,7 @@ import std.fmt (Format, Formatter)
 # # => ('key: value', 'test')
 # ```
 fn pub split_front_matter(input: String) -> (String, String) {
-  if input.starts_with?('---\n').false? { return ('', input) }
+  if !input.starts_with?('---\n') { return ('', input) }
 
   match input.index_of(value: '\n---', starting_at: 3) {
     case Some(idx) -> {

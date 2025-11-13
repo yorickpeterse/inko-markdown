@@ -397,9 +397,7 @@ type pub TableOfContents {
               }
             }
 
-            if level <= @maximum and ignore?(el).false? {
-              @tree.add(level, id, text)
-            }
+            if level <= @maximum and !ignore?(el) { @tree.add(level, id, text) }
           }
         }
       }

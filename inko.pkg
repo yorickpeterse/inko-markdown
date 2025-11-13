@@ -1,2 +1,2 @@
-require https://github.com/yorickpeterse/inko-builder 0.15.0 d00e893303ed10b903066dd1fe48e6c6fc3fb721
-require inko 0.18.0
+require https://github.com/yorickpeterse/inko-builder 0.16.0 4104d53031fb9d37c12a388be7f30490f1aa909a
+require inko 0.19.0
