@@ -30,7 +30,7 @@ Hello world using inko-markdown:
 import markdown (Document)
 import std.stdio (STDOUT)
 
-class async Main {
+type async Main {
   fn async main {
     let input = 'Hello **world**'
     let doc = Document.parse(input).unwrap
