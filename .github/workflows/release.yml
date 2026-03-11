@@ -24,7 +24,7 @@ jobs:
     steps:
       - name: Install dependencies
         run: microdnf install --quiet --assumeyes tar git
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Build documentation
         run: idoc
       - name: Upload documentation
